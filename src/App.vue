@@ -1,24 +1,22 @@
 <script setup lang="ts">
+import { ref } from 'vue';
+import NumberSelector from './components/NumberSelector.vue';
 import ProgressInput from './components/ProgressInput.vue';
+
+const test = ref(9);
 </script>
 
 <template>
-  <ProgressInput :unilateral="false" />
+  <div id="app">
+    <ProgressInput :unilateral="false" />
+    <!-- <NumberSelector :expectedReps="19" v-model="test" /> -->
+  </div>
 </template>
 
 <style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
+#app {
+  font-family: Avenir, Helvetica, Arial, sans-serif;
+  text-align: center;
+  background-color: rgb(150, 150, 150);
 }
 </style>

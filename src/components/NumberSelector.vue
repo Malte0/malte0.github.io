@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 
-const MAX_REPS = 200
-const numberOfRepsDone = ref(8)
+const props = defineProps<{
+  expectedReps?: number // optional prop to set default reps
+}>()
+
+const MAX_REPS = 256
+const numberOfRepsDone = defineModel({ default: 8 })
+numberOfRepsDone.value = props.expectedReps ?? numberOfRepsDone.value
 
 function onScrollEnd() {
-  const selector = document.getElementById('numberSelector') as HTMLElement | null
+  const selector = document.getElementById('number-selector') as HTMLElement | null
   if (!selector) return
 
   const rect = selector.getBoundingClientRect()
@@ -13,33 +17,61 @@ function onScrollEnd() {
   const centerY = rect.top + rect.height / 2
 
   const elementAtCenter = document.elementFromPoint(centerX, centerY) as HTMLElement | null
-  const rep = elementAtCenter?.closest('.repNumber') as HTMLElement | null
+  const rep = elementAtCenter?.closest('.rep-number') as HTMLElement | null
 
   if (!rep) {
     console.log('No rep found at center')
     return
   }
 
-  const reps = Array.from(selector.querySelectorAll<HTMLElement>('.repNumber'))
-  const index = reps.indexOf(rep)
-  console.log('Center rep index:', index + 1)
-  numberOfRepsDone.value = index + 1
+  const reps = Array.from(selector.querySelectorAll<HTMLElement>('.rep-number'))
+  const index = MAX_REPS - reps.indexOf(rep) - 1
+  console.log('Center rep index:', index)
+  numberOfRepsDone.value = index
 }
+
+setTimeout(() => {
+  console.log(numberOfRepsDone.value)
+  Array.from(document.querySelectorAll<HTMLElement>('.rep-number')).forEach((el, i) => {
+    if (MAX_REPS - i - 1 === numberOfRepsDone.value) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      console.log('Initial scroll to rep:', MAX_REPS - i - 1)
+    }
+  })
+}, 0)
 </script>
 
 <template>
   <div>
+    <button class="add-button" @click="numberOfRepsDone++">+1</button>
     <div id="selector-container">
       <div class="selector-fade" id="selector-fade-top"></div>
-      <ul id="numberSelector" @scrollend="onScrollEnd">
-        <li class="repNumber" v-for="(_, i) in Array.from({ length: MAX_REPS })" :key="i">{{ i + 1 }}</li>
+      <ul id="number-selector" @scrollend="onScrollEnd">
+        <li class="rep-number" v-for="(_, i) in Array.from({ length: MAX_REPS })" :key="i" :ref="(el) => {
+          if (MAX_REPS - i - 1 === numberOfRepsDone) {
+            (el as HTMLElement)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            // console.log('Scrolling to rep:', MAX_REPS - i - 1)
+          }
+        }">
+          {{ MAX_REPS - i - 1 }}
+        </li>
+        <li class="rep-number"></li>
+        <li class="rep-number"></li>
       </ul>
       <div class="selector-fade" id="selector-fade-bottom"></div>
     </div>
+    <button class="add-button" @click="numberOfRepsDone--">-1</button>
   </div>
 </template>
 
 <style scoped>
+.add-button {
+  font-size: 20px;
+  width: 60px;
+  padding: 10px 0;
+  margin: 10px 0;
+}
+
 #selector-container {
   background-color: white;
   color: black;
@@ -68,9 +100,9 @@ function onScrollEnd() {
   background: linear-gradient(to top, white, rgba(255, 255, 255, 0));
 }
 
-#numberSelector {
+#number-selector {
   scroll-snap-type: block mandatory;
-  transition: 0.1s ease;
+  transition: 0.5s ease;
   height: 200px;
   width: 60px;
   overflow-y: scroll;
@@ -80,7 +112,7 @@ function onScrollEnd() {
   margin: 0;
 }
 
-.repNumber {
+.rep-number {
   scroll-snap-align: center;
   list-style: none;
   height: 40px;
