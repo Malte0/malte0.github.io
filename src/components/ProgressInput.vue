@@ -13,35 +13,37 @@ const numberOfRepsDone = ref(8) // reps for left side
 const numberOfRepsDoneRight = ref(8) // reps for right side
 
 function toggleChain() {
+  if (!chainActive.value) {
+    numberOfRepsDoneRight.value = numberOfRepsDone.value
+    console.log("synced right to left:", numberOfRepsDoneRight.value)
+  }
   chainActive.value = !chainActive.value
   chainVisual.value = chainActive.value ? '🔗' : '⛓️'
 }
 
-// watch(numberOfRepsDoneRight, (newRepsRight) => {
-//   if (chainActive.value) {
-//     numberOfRepsDone.value = newRepsRight;
-//     console.log(numberOfRepsDone.value)
-//     console.log(numberOfRepsDoneRight.value)
-//   }
-// });
+watch(numberOfRepsDoneRight, (newRepsRight) => {
+  if (chainActive.value) {
+    numberOfRepsDone.value = newRepsRight;
+    console.log(numberOfRepsDone.value)
+  }
+});
 
-// watch(numberOfRepsDone, (newReps) => {
-//   if (chainActive.value) {
-//     numberOfRepsDoneRight.value = newReps;
-//     console.log(numberOfRepsDone.value)
-//     console.log(numberOfRepsDoneRight.value)
-//   }
-// });
+watch(numberOfRepsDone, (newReps) => {
+  if (chainActive.value) {
+    numberOfRepsDoneRight.value = newReps;
+    console.log(numberOfRepsDoneRight.value)
+  }
+});
 
 </script>
 
 <template>
   <div id="progressInputContainer">
     <div id="numberSelectors">
-      <NumberSelector :expected-reps="8" v-model="numberOfRepsDone"/>
+      <NumberSelector :expected-reps="8" identifier="left" v-model="numberOfRepsDone"/>
       <!-- Button should function like the pixel chain button in gimp -->
       <button id="chain-button" v-if="!props.unilateral" @click="toggleChain">{{ chainVisual }}</button>
-      <NumberSelector v-if="!props.unilateral" :expected-reps="8" v-model="numberOfRepsDoneRight"/>
+      <NumberSelector v-if="!props.unilateral" :expected-reps="8" identifier="right" v-model="numberOfRepsDoneRight"/>
     </div>
   </div>
 </template>
