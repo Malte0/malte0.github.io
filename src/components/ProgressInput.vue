@@ -35,6 +35,10 @@ watch(numberOfRepsDone, (newReps) => {
   }
 });
 
+function logValues() {
+  console.log("Left reps:", numberOfRepsDone.value, "Right reps:", numberOfRepsDoneRight.value)
+}
+
 </script>
 
 <template>
@@ -45,6 +49,7 @@ watch(numberOfRepsDone, (newReps) => {
       <button id="chain-button" v-if="!props.unilateral" @click="toggleChain">{{ chainVisual }}</button>
       <NumberSelector v-if="!props.unilateral" :expected-reps="8" identifier="right" v-model="numberOfRepsDoneRight"/>
     </div>
+    <button @click="logValues">Done</button>
   </div>
 </template>
 

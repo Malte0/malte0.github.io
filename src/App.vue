@@ -2,13 +2,15 @@
 import { ref } from 'vue';
 import NumberSelector from './components/NumberSelector.vue';
 import ProgressInput from './components/ProgressInput.vue';
+import Workout from './components/Workout.vue';
 
 const test = ref(9);
 </script>
 
 <template>
   <div id="app">
-    <ProgressInput :unilateral="false" />
+    <!-- <ProgressInput :unilateral="false" /> -->
+     <Workout workoutFileNmae="legs" />
     <!-- <NumberSelector :expectedReps="19" v-model="test" /> -->
   </div>
 </template>

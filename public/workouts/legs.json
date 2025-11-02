@@ -1,0 +1,17 @@
+[
+    {
+        "name": "Shrimp Squats",
+        "repTarget": 6,
+        "sets": 3
+    },
+    {
+        "name": "Nordic Curls",
+        "repTarget": 8,
+        "sets": 3
+    },
+    {
+        "name": "Pistol Squats",
+        "repTarget": 6,
+        "sets": 3
+    }
+]
