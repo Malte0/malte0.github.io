@@ -1,17 +1,29 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import NumberSelector from './components/NumberSelector.vue';
-import ProgressInput from './components/ProgressInput.vue';
+import { computed, ref } from 'vue';
 import Workout from './components/Workout.vue';
+import WorkoutSelection from './components/WorkoutSelection.vue';
+import NotFound from './components/NotFound.vue';
 
-const test = ref(9);
+const routes: { [type: string]: any } = {
+  '/': WorkoutSelection,
+}
+
+const currentPath = ref(window.location.hash)
+
+window.addEventListener('hashchange', () => {
+  currentPath.value = window.location.hash
+})
+
+const currentView = computed(() => {
+  return routes[currentPath.value.slice(1) || '/'] || NotFound
+})
 </script>
 
 <template>
   <div id="app">
-    <!-- <ProgressInput :unilateral="false" /> -->
-     <Workout workoutFileNmae="legs" />
-    <!-- <NumberSelector :expectedReps="19" v-model="test" /> -->
+    <!-- <Workout href="#/" workoutFileNmae="legs" /> -->
+    <!-- <a href="#/path">Broken Link</a> -->
+    <component :is="currentView" />
   </div>
 </template>
 
