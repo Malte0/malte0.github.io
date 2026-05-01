@@ -4,7 +4,7 @@ const props = defineProps<{ workoutFileNmae: string }>()
 
 import { onMounted, ref, type Ref } from 'vue'
 import type { exercise } from '../types';
-const workoutData: Ref<exercise> | Ref<null> = ref(null)
+const workoutData: Ref<exercise> = ref(undefined as any);
 
 onMounted(async () => {
     try {
