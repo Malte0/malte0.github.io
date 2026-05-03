@@ -1,9 +1,9 @@
 //
 <script setup lang="ts">
 import type { Exercise } from "../types";
-import { isValidExercise } from "../json-db/db-utils";
+import { isValidExercise } from "../excel-db/db-utils";
 import { ref } from "vue";
-import { writeExercise } from "../json-db/writeExercise";
+import { writeExercise } from "../excel-db/writeExercise";
 
 const today: string = new Date().toISOString().split("T")[0] as string; // get today's date in YYYY-MM-DD format
 const exercise = ref<Exercise>({
@@ -12,13 +12,18 @@ const exercise = ref<Exercise>({
   reps: 0,
   date: today,
 });
+const submitStatus = ref("");
 
-function submitExercise() {
+async function submitExercise() {
   if (isValidExercise(exercise.value)) {
-    console.log("Exercise VALID");
-    writeExercise(exercise.value);
+    const result = await writeExercise(exercise.value);
+    if (result.ok) {
+      submitStatus.value = "Saved to Google Sheet.";
+    } else {
+      submitStatus.value = `Save failed: ${result.error ?? "Unknown error"}`;
+    }
   } else {
-    console.log("Exercise INVALID");
+    submitStatus.value = "Exercise invalid. Please check all required fields.";
   }
 }
 </script>
@@ -57,6 +62,7 @@ function submitExercise() {
       </div>
     </div>
     <button id="exercise-input-submit-button" @click="submitExercise">Submit</button>
+    <p v-if="submitStatus" class="submit-status">{{ submitStatus }}</p>
   </div>
 </template>
 
@@ -106,5 +112,9 @@ function submitExercise() {
   border: none;
   border-radius: 4px;
   cursor: pointer;
+}
+
+.submit-status {
+  margin-top: 0.75rem;
 }
 </style>
