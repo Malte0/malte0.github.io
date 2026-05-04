@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, type Ref } from 'vue'
-import NotFound from './NotFound.vue'
-import ProgressInput from './ProgressInput.vue'
+import { onMounted, ref, type Ref } from 'vue'
 
 const splitDays: Ref<string[]> | Ref<null> = ref(null)
   onMounted(async () => {
@@ -13,21 +11,6 @@ const splitDays: Ref<string[]> | Ref<null> = ref(null)
       console.error('Error loading workout data:', error)
     }
   })
-
-const routes: { [type: string]: any } = {
-  '/': ProgressInput, // somehow get to progress input with the first exercise
-}
-
-
-const currentPath = ref(window.location.hash)
-
-window.addEventListener('hashchange', () => {
-  currentPath.value = window.location.hash
-})
-
-const currentView = computed(() => {
-  return routes[currentPath.value.slice(1) || '/'] || NotFound
-})
 
 </script>
 

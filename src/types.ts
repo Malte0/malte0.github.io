@@ -6,4 +6,5 @@ export type Exercise = {
     weight?: number;
     time?: number;
     notes?: string;
+    targetReps?: number;
 }
