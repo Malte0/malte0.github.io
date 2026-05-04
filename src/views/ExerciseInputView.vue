@@ -69,6 +69,7 @@ async function submitExercise() {
 <style scoped>
 .exercise-input-container {
   display: flex;
+  width: 100%;
   flex-direction: column;
   gap: 1rem;
 }
