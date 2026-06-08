@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { appendScript } from "../functions/utils";
+import { ref } from "vue";
 import { initializeGapiClient, initializeTokenClient } from "../excel-db/authentication";
 import { useRouter } from "vue-router";
 
@@ -11,21 +10,22 @@ const apiKey = ref("");
 const status = ref("Enter credentials.");
 const gapiInitialized = ref(false);
 
-function gapiLoaded() {
-  // @ts-ignore
-  gapi.load("client", async () => {
-    gapiInitialized.value = gapiInitialized.value || await initializeGapiClient(apiKey.value);
-  });
-}
+// function gapiLoaded() {
+//   // @ts-ignore
+//   gapi.load("client", async () => {
+//     gapiInitialized.value = gapiInitialized.value || await initializeGapiClient(apiKey.value);
+//   });
+// }
 
 async function handleAuthClick() {
+  console.log("Auth button clicked with Client ID:", clientId.value, "and API Key:", apiKey.value);
   if (!gapiInitialized.value) {
     gapiInitialized.value = gapiInitialized.value || await initializeGapiClient(apiKey.value);
     if (!gapiInitialized.value) return;
   }
 
   // initialize token client from Google Identity Services
-  const client = initializeTokenClient(clientId.value.trim(), () => router.push('/rawData'));
+  const client = initializeTokenClient(clientId.value.trim(), () => router.push('/input'));
   if (!client) return;
 
   // request token; choose prompt depending on existing token
@@ -33,10 +33,6 @@ async function handleAuthClick() {
   if (gapi?.client?.getToken() == null) client.requestAccessToken({ prompt: "" });
 }
 
-onMounted(() => {
-  appendScript("https://apis.google.com/js/api.js", { async: true, defer: true }, gapiLoaded);
-  appendScript("https://accounts.google.com/gsi/client", { async: true, defer: true });
-});
 </script>
 
 <template>

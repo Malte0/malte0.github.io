@@ -2,10 +2,21 @@
 <script setup lang="ts">
 import type { Exercise } from "../types";
 import { isValidExercise } from "../excel-db/db-utils";
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { writeExercise } from "../excel-db/writeExercise";
+const SHEET_ID = import.meta.env.VITE_SHEET_ID;
+
+async function getSheetTitles() {
+  // @ts-ignore
+  const spreadsheetResponse = await gapi.client.sheets.spreadsheets.get({
+    spreadsheetId: SHEET_ID,
+  });
+
+  return spreadsheetResponse.result.sheets?.map((sheet: any) => sheet.properties?.title) ?? [];
+}
 
 const today: string = new Date().toISOString().split("T")[0] as string; // get today's date in YYYY-MM-DD format
+const sheetNames = ref<string[]>([]);
 const exercise = ref<Exercise>({
   name: "",
   sets: 0,
@@ -26,6 +37,45 @@ async function submitExercise() {
     submitStatus.value = "Exercise invalid. Please check all required fields.";
   }
 }
+
+async function loadSheetNames() {
+  sheetNames.value = await getSheetTitles();
+  if (!exercise.value.name && sheetNames.value.length > 0) {
+    exercise.value.name = sheetNames.value[0]!;
+  }
+}
+
+setTimeout(() => {
+  loadSheetNames();
+}, 5000); // delay to allow gapi client to initialize; consider replacing with more robust solution in the future
+
+onMounted(() => {
+  loadSheetNames();
+});
+
+// async function writeTestToB1() {
+//   try {
+//     const firstSheetTitle = await getFirstSheetTitle();
+//     if (!firstSheetTitle) {
+//       sheetStatus.value = "No sheets found in the spreadsheet.";
+//       return;
+//     }
+
+//     // @ts-ignore
+//     await gapi.client.sheets.spreadsheets.values.update({
+//       spreadsheetId: SHEET_ID,
+//       range: `${firstSheetTitle}!B1`,
+//       valueInputOption: "RAW",
+//       resource: {
+//         values: [[WRITE_TEST]],
+//       },
+//     });
+
+//     sheetStatus.value = "Wrote WRITE_TEST to B1.";
+//   } catch (err: any) {
+//     sheetStatus.value = err?.result?.error?.message || err?.message || String(err);
+//   }
+// }
 </script>
 
 <template>
@@ -33,8 +83,13 @@ async function submitExercise() {
     <h2>Input Exercise Data</h2>
     <div class="exercise-input-container">
       <div class="exercise-input">
-        <label for="exercise-name">Exercise Name:</label>
-        <input type="text" id="exercise-name" v-model="exercise.name" />
+        <label for="exercise-name">Name:</label>
+        <select id="exercise-name" v-model="exercise.name">
+          <option disabled value="">Select an exercise</option>
+          <option v-for="sheetName in sheetNames" :key="sheetName" :value="sheetName">
+            {{ sheetName }}
+          </option>
+        </select>
       </div>
       <div class="exercise-input">
         <label for="sets">Sets:</label>

@@ -1,121 +1,130 @@
 //
 <script setup lang="ts">
-import type { Exercise } from "../types";
-import { isValidExercise } from "../excel-db/db-utils";
-import { ref } from "vue";
-import { writeExercise } from "../excel-db/writeExercise";
+import { TOKEN_CLIENT } from "../excel-db/authentication";
+import { ref, onMounted } from "vue";
+const SHEET_ID = import.meta.env.VITE_SHEET_ID;
 
-const today: string = new Date().toISOString().split("T")[0] as string; // get today's date in YYYY-MM-DD format
-const exercise = ref<Exercise>({
-  name: "",
-  sets: 0,
-  reps: 0,
-  date: today,
-});
-const submitStatus = ref("");
+const sheetTitles = ref<string[]>([]);
+const selectedSheetTitle = ref("");
+const sheetStatus = ref("Checking authentication...");
+const sheetContent = ref("");
 
-async function submitExercise() {
-  if (isValidExercise(exercise.value)) {
-    const result = await writeExercise(exercise.value);
-    if (result.ok) {
-      submitStatus.value = "Saved to Google Sheet.";
-    } else {
-      submitStatus.value = `Save failed: ${result.error ?? "Unknown error"}`;
+function refreshSheets() {
+  getSheetTitles();
+  readSheetContents();
+}
+
+async function getSheetTitles() {
+  // @ts-ignore
+  const spreadsheetResponse = await gapi.client.sheets.spreadsheets.get({
+    spreadsheetId: SHEET_ID,
+  });
+
+  return spreadsheetResponse.result.sheets?.map((sheet: any) => sheet.properties?.title) ?? [];
+}
+
+async function readSheetContents() {
+  console.log("Reading contents of sheet:", selectedSheetTitle.value);
+  try {
+    const sheetTitle = selectedSheetTitle.value;
+    console.log("Selected sheet title:", sheetTitle);
+
+    // @ts-ignore
+    const valuesResponse = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${sheetTitle}!A:Z`,
+    });
+
+    sheetContent.value = JSON.stringify(valuesResponse.result.values ?? [], null, 2);
+    if (sheetContent.value === "[]") {
+      sheetContent.value = "Sheet is empty.";
     }
-  } else {
-    submitStatus.value = "Exercise invalid. Please check all required fields.";
+  } catch (err: any) {
+    sheetStatus.value = err?.result?.error?.message || err?.message || String(err);
   }
 }
+
+onMounted(async () => {
+  if (TOKEN_CLIENT) {
+    sheetTitles.value = await getSheetTitles() as string[];
+    selectedSheetTitle.value = sheetTitles.value[0] || "";
+    sheetStatus.value = "";
+  } else {
+    sheetStatus.value = "Not authenticated.";
+  }
+});
+
 </script>
 
 <template>
   <div>
-    <h2>Input Exercise Data</h2>
-    <div class="exercise-input-container">
-      <div class="exercise-input">
-        <label for="exercise-name">Exercise Name:</label>
-        <input type="text" id="exercise-name" v-model="exercise.name" />
-      </div>
-      <div class="exercise-input">
-        <label for="sets">Sets:</label>
-        <input type="number" id="sets" v-model.number="exercise.sets" />
-      </div>
-      <div class="exercise-input">
-        <label for="reps">Reps:</label>
-        <input type="number" id="reps" v-model.number="exercise.reps" />
-      </div>
-      <div class="exercise-input">
-        <label for="weight">Weight (optional):</label>
-        <input type="number" id="weight" v-model.number="exercise.weight" />
-      </div>
-      <div class="exercise-input">
-        <label for="time">Time (optional):</label>
-        <input type="number" id="time" v-model.number="exercise.time" />
-      </div>
-      <div class="exercise-input">
-        <label for="notes">Notes (optional):</label>
-        <textarea id="notes" v-model="exercise.notes"></textarea>
-      </div>
-      <div class="exercise-input">
-        <label for="date">Date:</label>
-        <input type="date" id="date" v-model="exercise.date" />
-      </div>
+    <div class="toolbar">
+      <select v-model="selectedSheetTitle" @change="readSheetContents">
+        <option v-for="title in sheetTitles" :key="title" :value="title">
+          {{ title }}
+        </option>
+      </select>
+      <button @click="refreshSheets">Refresh</button>
     </div>
-    <button id="exercise-input-submit-button" @click="submitExercise">Submit</button>
-    <p v-if="submitStatus" class="submit-status">{{ submitStatus }}</p>
+    <div>
+      {{ sheetContent }}
+    </div>
+    <div v-if="sheetStatus">
+      {{ sheetStatus }}
+    </div>
   </div>
 </template>
 
 <style scoped>
-.exercise-input-container {
-  display: flex;
-  width: 100%;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.exercise-input {
-  display: flex;
-  flex-direction: row;
-}
-
-.exercise-input>input,
-.exercise-input>select,
-.exercise-input>textarea {
-  padding: 0.5rem;
-  font-size: 1rem;
-  flex: 2;
-  box-sizing: border-box; /* ensure padding included in width */
-  min-width: 0; /* allow flex items to shrink properly so widths match */
-}
-
-.exercise-input>label {
-  padding: 0 0.5rem;
-  margin-bottom: 0.5rem;
-  font-weight: bold;
-  flex: 1;
+.toolbar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  text-align: right;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
 }
 
-#listContainer {
-  padding: 0;
+select {
+  min-width: 240px;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  background: #fff;
+  color: #24292f;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  box-shadow: 0 1px 2px rgba(27, 31, 36, 0.08);
+  appearance: none;
 }
 
-#exercise-input-submit-button {
-  margin-top: 1rem;
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
+select:hover {
+  border-color: #8c959f;
+}
+
+select:focus {
+  outline: none;
+  border-color: #0969da;
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.15);
+}
+
+button {
+  padding: 0.65rem 1rem;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  background: #f6f8fa;
+  color: #24292f;
+  font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.submit-status {
-  margin-top: 0.75rem;
+button:hover {
+  background: #eef1f4;
+  border-color: #8c959f;
 }
+
+button:active {
+  background: #eaeef2;
+}
+
+
 </style>
