@@ -1,13 +1,30 @@
 //
 <script setup lang="ts">
-import { TOKEN_CLIENT } from "../excel-db/authentication";
-import { ref, onMounted } from "vue";
+import { gapiInitialized, isAuthenticated, restoreStoredAuth } from "../excel-db/authentication";
+import { ref, onMounted, watch } from "vue";
 const SHEET_ID = import.meta.env.VITE_SHEET_ID;
 
 const sheetTitles = ref<string[]>([]);
 const selectedSheetTitle = ref("");
 const sheetStatus = ref("Checking authentication...");
 const sheetContent = ref("");
+
+async function initializeSheetView() {
+  if (!gapiInitialized.value) {
+    sheetStatus.value = "Checking authentication...";
+    return;
+  }
+
+  if (!isAuthenticated()) {
+    sheetStatus.value = "Not authenticated.";
+    return;
+  }
+
+  restoreStoredAuth();
+  sheetTitles.value = await getSheetTitles() as string[];
+  selectedSheetTitle.value = sheetTitles.value[0] || "";
+  sheetStatus.value = "";
+}
 
 function refreshSheets() {
   getSheetTitles();
@@ -45,13 +62,11 @@ async function readSheetContents() {
 }
 
 onMounted(async () => {
-  if (TOKEN_CLIENT) {
-    sheetTitles.value = await getSheetTitles() as string[];
-    selectedSheetTitle.value = sheetTitles.value[0] || "";
-    sheetStatus.value = "";
-  } else {
-    sheetStatus.value = "Not authenticated.";
-  }
+  await initializeSheetView();
+});
+
+watch(gapiInitialized, async () => {
+  await initializeSheetView();
 });
 
 </script>

@@ -1,6 +1,6 @@
 //
 <script setup lang="ts">
-import type { Exercise } from "../types";
+import type { ExerciseData } from "../types";
 import { isValidExercise } from "../excel-db/db-utils";
 import { onMounted, ref } from "vue";
 import { writeExercise } from "../excel-db/writeExercise";
@@ -17,10 +17,12 @@ async function getSheetTitles() {
 
 const today: string = new Date().toISOString().split("T")[0] as string; // get today's date in YYYY-MM-DD format
 const sheetNames = ref<string[]>([]);
-const exercise = ref<Exercise>({
+const exercise = ref<ExerciseData>({
   name: "",
-  sets: 0,
-  reps: 0,
+  repsSet1: 0,
+  repsSet2: 0,
+  repsSet3: 0,
+  repsSet4: 0,
   date: today,
 });
 const submitStatus = ref("");
@@ -45,37 +47,33 @@ async function loadSheetNames() {
   }
 }
 
-setTimeout(() => {
-  loadSheetNames();
-}, 5000); // delay to allow gapi client to initialize; consider replacing with more robust solution in the future
-
-onMounted(() => {
-  loadSheetNames();
+onMounted(async () => {
+  // @ts-ignore
+  await gapi.load("client", async () => {
+    await loadSheetNames();
+  });
 });
 
-// async function writeTestToB1() {
-//   try {
-//     const firstSheetTitle = await getFirstSheetTitle();
-//     if (!firstSheetTitle) {
-//       sheetStatus.value = "No sheets found in the spreadsheet.";
-//       return;
-//     }
+async function writeTestToA2() {
+  try {
+    const firstSheetTitle = await getFirstSheetTitle();
+    if (!firstSheetTitle) {
+      return;
+    }
 
-//     // @ts-ignore
-//     await gapi.client.sheets.spreadsheets.values.update({
-//       spreadsheetId: SHEET_ID,
-//       range: `${firstSheetTitle}!B1`,
-//       valueInputOption: "RAW",
-//       resource: {
-//         values: [[WRITE_TEST]],
-//       },
-//     });
+    // @ts-ignore
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${firstSheetTitle}!B1`,
+      valueInputOption: "RAW",
+      resource: {
+        values: [[WRITE_TEST]],
+      },
+    });
 
-//     sheetStatus.value = "Wrote WRITE_TEST to B1.";
-//   } catch (err: any) {
-//     sheetStatus.value = err?.result?.error?.message || err?.message || String(err);
-//   }
-// }
+  } catch (err: any) {
+  }
+}
 </script>
 
 <template>
@@ -92,7 +90,7 @@ onMounted(() => {
         </select>
       </div>
       <div class="exercise-input">
-        <label for="sets">Sets:</label>
+        <label for="sets">Progression:</label>
         <input type="number" id="sets" v-model.number="exercise.sets" />
       </div>
       <div class="exercise-input">
@@ -100,15 +98,15 @@ onMounted(() => {
         <input type="number" id="reps" v-model.number="exercise.reps" />
       </div>
       <div class="exercise-input">
-        <label for="weight">Weight (optional):</label>
+        <label for="weight">Weight:</label>
         <input type="number" id="weight" v-model.number="exercise.weight" />
       </div>
       <div class="exercise-input">
-        <label for="time">Time (optional):</label>
+        <label for="time">Times:</label>
         <input type="number" id="time" v-model.number="exercise.time" />
       </div>
       <div class="exercise-input">
-        <label for="notes">Notes (optional):</label>
+        <label for="notes">Notes:</label>
         <textarea id="notes" v-model="exercise.notes"></textarea>
       </div>
       <div class="exercise-input">
