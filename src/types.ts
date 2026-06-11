@@ -11,13 +11,17 @@ export type Exercise = {
 
 export type ExerciseData = {
     name: string;
-    Progression: string;
-    repsSet1: number;
-    repsSet2: number;
-    repsSet3: number;
-    repsSet4: number;
-    date: string;
+    progression: string;
+    repsSet1?: number;
+    repsSet2?: number;
+    repsSet3?: number;
+    repsSet4?: number;
+    timeSet1?: number;
+    timeSet2?: number;
+    timeSet3?: number;
+    timeSet4?: number;
     weight?: number;
-    time?: number;
+    breakTime?: number;
+    date: string;
     notes?: string;
 }

@@ -12,7 +12,7 @@ const status = ref("Enter credentials.");
 function redirectIfAuthenticated() {
   if (gapiInitialized.value && isAuthenticated()) {
     restoreStoredAuth();
-    router.push('/rawData');
+    router.push('/input');
   }
 }
 

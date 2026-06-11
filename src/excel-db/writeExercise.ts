@@ -1,5 +1,5 @@
 
-import type { Exercise } from '../types';
+import type { Exercise, ExerciseData } from '../types';
 import { isValidExercise } from './db-utils';
 
 type WriteExerciseResult = {
@@ -7,7 +7,7 @@ type WriteExerciseResult = {
     error?: string;
 };
 
-export async function writeExercise(exercise: Exercise): Promise<WriteExerciseResult> {
+export async function writeExercise(exercise: ExerciseData): Promise<WriteExerciseResult> {
     if (!isValidExercise(exercise)) {
         console.error('Invalid exercise data:', exercise);
         return { ok: false, error: 'Invalid exercise data' };

@@ -1,10 +1,75 @@
 //
 <script setup lang="ts">
 import type { ExerciseData } from "../types";
-import { isValidExercise } from "../excel-db/db-utils";
-import { onMounted, ref } from "vue";
-import { writeExercise } from "../excel-db/writeExercise";
+import { onMounted, ref, watch } from "vue";
+import { gapiInitialized } from "../excel-db/authentication";
 const SHEET_ID = import.meta.env.VITE_SHEET_ID;
+
+const today: string = new Date().toISOString().split("T")[0] as string; // get today's date in YYYY-MM-DD format
+const sheetNames = ref<string[]>([]);
+const progressionNames = ref<string[]>([]);
+const exercise = ref<ExerciseData>({
+  name: "",
+  progression: "",
+  repsSet1: 0,
+  repsSet2: 0,
+  repsSet3: 0,
+  repsSet4: 0,
+  timeSet1: 0,
+  timeSet2: 0,
+  timeSet3: 0,
+  timeSet4: 0,
+  weight: 0,
+  breakTime: 0,
+  date: today,
+  notes: "",
+});
+const submitStatus = ref("");
+
+async function submitExercise() {
+  try {
+    // Get all values to find the first empty row
+    // @ts-ignore
+    const response = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${exercise.value.name}!A:A`,
+    });
+
+    const rows = response.result.values ?? [];
+    const firstEmptyRow = rows.length + 1;
+
+    // Prepare the data row to write
+    const dataRow = [
+      exercise.value.date,
+      exercise.value.progression,
+      exercise.value.repsSet1 || "",
+      exercise.value.repsSet2 || "",
+      exercise.value.repsSet3 || "",
+      exercise.value.repsSet4 || "",
+      exercise.value.timeSet1 || "",
+      exercise.value.timeSet2 || "",
+      exercise.value.timeSet3 || "",
+      exercise.value.timeSet4 || "",
+      exercise.value.weight || "",
+      exercise.value.breakTime || "",
+      exercise.value.notes,
+    ];
+
+    // @ts-ignore
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${exercise.value.name}!A${firstEmptyRow}`,
+      valueInputOption: "RAW",
+      resource: {
+        values: [dataRow],
+      },
+    });
+
+    submitStatus.value = "Saved to Google Sheet.";
+  } catch (err: any) {
+    submitStatus.value = `Save failed: ${err.message ?? "Unknown error"}`;
+  }
+}
 
 async function getSheetTitles() {
   // @ts-ignore
@@ -15,65 +80,43 @@ async function getSheetTitles() {
   return spreadsheetResponse.result.sheets?.map((sheet: any) => sheet.properties?.title) ?? [];
 }
 
-const today: string = new Date().toISOString().split("T")[0] as string; // get today's date in YYYY-MM-DD format
-const sheetNames = ref<string[]>([]);
-const exercise = ref<ExerciseData>({
-  name: "",
-  repsSet1: 0,
-  repsSet2: 0,
-  repsSet3: 0,
-  repsSet4: 0,
-  date: today,
-});
-const submitStatus = ref("");
-
-async function submitExercise() {
-  if (isValidExercise(exercise.value)) {
-    const result = await writeExercise(exercise.value);
-    if (result.ok) {
-      submitStatus.value = "Saved to Google Sheet.";
-    } else {
-      submitStatus.value = `Save failed: ${result.error ?? "Unknown error"}`;
-    }
-  } else {
-    submitStatus.value = "Exercise invalid. Please check all required fields.";
-  }
-}
-
-async function loadSheetNames() {
+async function getSheetNames() {
   sheetNames.value = await getSheetTitles();
   if (!exercise.value.name && sheetNames.value.length > 0) {
     exercise.value.name = sheetNames.value[0]!;
   }
+
+  await onExerciseNameChange();
+}
+
+async function getProgressionNames(sheetName: string) {
+  // @ts-ignore
+  const response = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID,
+    range: `${sheetName}!B2:B`,
+  });
+
+  return response.result.values?.flat() ?? [];
+}
+
+async function onExerciseNameChange() {
+  const selectedSheetName = exercise.value.name;
+  if (selectedSheetName) {
+    progressionNames.value = await getProgressionNames(selectedSheetName);
+  }
 }
 
 onMounted(async () => {
-  // @ts-ignore
-  await gapi.load("client", async () => {
-    await loadSheetNames();
-  });
+  if (gapiInitialized.value) {
+    await getSheetNames();
+  }
 });
 
-async function writeTestToA2() {
-  try {
-    const firstSheetTitle = await getFirstSheetTitle();
-    if (!firstSheetTitle) {
-      return;
-    }
-
-    // @ts-ignore
-    await gapi.client.sheets.spreadsheets.values.update({
-      spreadsheetId: SHEET_ID,
-      range: `${firstSheetTitle}!B1`,
-      valueInputOption: "RAW",
-      resource: {
-        values: [[WRITE_TEST]],
-      },
-    });
-
-  } catch (err: any) {
+watch(gapiInitialized, async (isLoaded) => {
+  if (isLoaded) {
+    await getSheetNames();
   }
-}
+});
 </script>
 
 <template>
@@ -82,7 +125,7 @@ async function writeTestToA2() {
     <div class="exercise-input-container">
       <div class="exercise-input">
         <label for="exercise-name">Name:</label>
-        <select id="exercise-name" v-model="exercise.name">
+        <select @change="onExerciseNameChange" id="exercise-name" v-model="exercise.name">
           <option disabled value="">Select an exercise</option>
           <option v-for="sheetName in sheetNames" :key="sheetName" :value="sheetName">
             {{ sheetName }}
@@ -91,27 +134,38 @@ async function writeTestToA2() {
       </div>
       <div class="exercise-input">
         <label for="sets">Progression:</label>
-        <input type="number" id="sets" v-model.number="exercise.sets" />
+        <select id="sets" v-model="exercise.progression">
+          <option disabled value="">Select a progression</option>
+          <option v-for="progressionName in progressionNames" :key="progressionName" :value="progressionName">
+            {{ progressionName }}
+          </option>
+        </select>
       </div>
       <div class="exercise-input">
         <label for="reps">Reps:</label>
-        <input type="number" id="reps" v-model.number="exercise.reps" />
+        <input type="number" class="exercise-small-input" id="reps" v-model.number="exercise.repsSet1" />
+        <input type="number" class="exercise-small-input" id="reps" v-model.number="exercise.repsSet2" />
+        <input type="number" class="exercise-small-input" id="reps" v-model.number="exercise.repsSet3" />
+        <input type="number" class="exercise-small-input" id="reps" v-model.number="exercise.repsSet4" />
+      </div>
+      <div class="exercise-input">
+        <label for="time">Times:</label>
+        <input type="number" class="exercise-small-input" id="time" v-model.number="exercise.timeSet1" />
+        <input type="number" class="exercise-small-input" id="time" v-model.number="exercise.timeSet2" />
+        <input type="number" class="exercise-small-input" id="time" v-model.number="exercise.timeSet3" />
+        <input type="number" class="exercise-small-input" id="time" v-model.number="exercise.timeSet4" />
       </div>
       <div class="exercise-input">
         <label for="weight">Weight:</label>
         <input type="number" id="weight" v-model.number="exercise.weight" />
       </div>
       <div class="exercise-input">
-        <label for="time">Times:</label>
-        <input type="number" id="time" v-model.number="exercise.time" />
+        <label for="date">Date:</label>
+        <input type="date" id="date" v-model="exercise.date" />
       </div>
       <div class="exercise-input">
         <label for="notes">Notes:</label>
         <textarea id="notes" v-model="exercise.notes"></textarea>
-      </div>
-      <div class="exercise-input">
-        <label for="date">Date:</label>
-        <input type="date" id="date" v-model="exercise.date" />
       </div>
     </div>
     <button id="exercise-input-submit-button" @click="submitExercise">Submit</button>
@@ -120,6 +174,12 @@ async function writeTestToA2() {
 </template>
 
 <style scoped>
+.exercise-small-input {
+  width: 1rem;
+  flex: 0.3 !important;
+  margin-left: 0.5rem;
+}
+
 .exercise-input-container {
   display: flex;
   width: 100%;
@@ -138,8 +198,10 @@ async function writeTestToA2() {
   padding: 0.5rem;
   font-size: 1rem;
   flex: 2;
-  box-sizing: border-box; /* ensure padding included in width */
-  min-width: 0; /* allow flex items to shrink properly so widths match */
+  box-sizing: border-box;
+  /* ensure padding included in width */
+  min-width: 0;
+  /* allow flex items to shrink properly so widths match */
 }
 
 .exercise-input>label {
