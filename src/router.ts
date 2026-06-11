@@ -1,4 +1,4 @@
-import { createWebHistory, createRouter } from "vue-router";
+import { createWebHashHistory, createRouter } from "vue-router";
 
 import ExerciseInput from "./views/ExerciseInputView.vue";
 import LoginView from "./views/LoginView.vue";
@@ -17,6 +17,6 @@ const routes = [
 ];
 
 export const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHashHistory(import.meta.env.BASE_URL),
   routes,
 });
