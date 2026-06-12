@@ -95,8 +95,12 @@ async function getProgressionNames(sheetName: string) {
     spreadsheetId: SHEET_ID,
     range: `${sheetName}!B2:B`,
   });
-
-  return response.result.values?.flat() ?? [];
+  const raw = response.result.values?.flat() ?? [];
+  // normalize, trim, remove empty and make unique preserving order
+  const progressionNames: string[] = Array.from(
+    new Set(raw.map((v: any) => String(v).trim()).filter((v: string) => v.length > 0))
+  );
+  return progressionNames;
 }
 
 async function onExerciseNameChange() {
