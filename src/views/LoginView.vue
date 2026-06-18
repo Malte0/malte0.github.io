@@ -6,13 +6,14 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 const clientId = ref("662873548613-9jltvrdctvcv383bu7hvo6h919bidq9a.apps.googleusercontent.com");
 const apiKey = ref(import.meta.env.VITE_API_KEY);
-
 const status = ref("Enter credentials.");
+
+const REDIRECT_TO = "/home";
 
 function redirectIfAuthenticated() {
   if (gapiInitialized.value && isAuthenticated()) {
     restoreStoredAuth();
-    router.push('/input');
+    router.push(REDIRECT_TO);
   }
 }
 
@@ -32,7 +33,7 @@ async function handleAuthClick() {
   }
 
   // initialize token client from Google Identity Services
-  const client = initializeTokenClient(clientId.value.trim(), () => router.push('/rawData'));
+  const client = initializeTokenClient(clientId.value.trim(), () => router.push(REDIRECT_TO));
   if (!client) return;
 
   console.log("Token client initialized:", client);

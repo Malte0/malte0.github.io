@@ -1,18 +1,18 @@
 import { createWebHashHistory, createRouter } from "vue-router";
 
 import ExerciseInput from "./views/ExerciseInputView.vue";
+import HomeView from "./views/HomeView.vue";
 import LoginView from "./views/LoginView.vue";
 import RawDataView from "./views/RawDataView.vue";
+import WorkoutView from "./views/WorkoutView.vue";
 
 const routes = [
-  { path: "/", component: ExerciseInput },
+  { path: "/", component: LoginView },
+  { path: "/home", component: HomeView },
   { path: "/input", component: ExerciseInput },
   { path: "/login", component: LoginView },
   { path: "/rawData", component: RawDataView },
-  // { TODO: put in seperate view for tidyness
-  //   path: "material-editor/:pathMatch(.*)",
-  //   component: CaseView,
-  // },
+  { path: "/workouts", component: WorkoutView },
   { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 
