@@ -22,6 +22,7 @@ const exercise = ref<ExerciseData>({
   weight: 0,
   breakTime: 0,
   date: today,
+  dropset: "",
   notes: "",
 });
 const submitStatus = ref("");
@@ -110,6 +111,39 @@ async function onExerciseNameChange() {
   }
 }
 
+// Reads reptitions from last entry of the selected progression and pre-fills the inputs
+async function onProgressionChange() {
+  const selectedSheetName = exercise.value.name;
+  const selectedProgression = exercise.value.progression;
+  if (selectedSheetName && selectedProgression) {
+    // @ts-ignore
+    const response = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${selectedSheetName}!A2:L`,
+    });
+
+    const rows = response.result.values ?? [];
+    // Find the last row for the selected progression
+    for (let i = rows.length - 1; i >= 0; i--) {
+      if (rows[i][1] === selectedProgression) {
+        exercise.value.repsSet1 = Number(rows[i][2]) || 0;
+        exercise.value.repsSet2 = Number(rows[i][3]) || 0;
+        exercise.value.repsSet3 = Number(rows[i][4]) || 0;
+        exercise.value.repsSet4 = Number(rows[i][5]) || 0;
+        exercise.value.timeSet1 = Number(rows[i][6]) || 0;
+        exercise.value.timeSet2 = Number(rows[i][7]) || 0;
+        exercise.value.timeSet3 = Number(rows[i][8]) || 0;
+        exercise.value.timeSet4 = Number(rows[i][9]) || 0;
+        exercise.value.weight = Number(rows[i][10]) || 0;
+        exercise.value.dropset = rows[i][11] || "";
+        exercise.value.breakTime = Number(rows[i][11]) || 0;
+        exercise.value.notes = rows[i][12] || "";
+        break;
+      }
+    }
+  }  
+}
+
 onMounted(async () => {
   if (gapiInitialized.value) {
     await getSheetNames();
@@ -138,7 +172,7 @@ watch(gapiInitialized, async (isLoaded) => {
       </div>
       <div class="exercise-input">
         <label for="sets">Progression:</label>
-        <select id="sets" v-model="exercise.progression">
+        <select @change="onProgressionChange" id="sets" v-model="exercise.progression">
           <option disabled value="">Select a progression</option>
           <option v-for="progressionName in progressionNames" :key="progressionName" :value="progressionName">
             {{ progressionName }}
@@ -166,6 +200,15 @@ watch(gapiInitialized, async (isLoaded) => {
       <div class="exercise-input">
         <label for="date">Date:</label>
         <input type="date" id="date" v-model="exercise.date" />
+      </div>
+      <div class="exercise-input">
+        <label for="sets">Dropset:</label>
+        <select v-model="exercise.dropset">
+          <option disabled value="">Select a dropset</option>
+          <option v-for="dropsetName in sheetNames" :key="dropsetName" :value="dropsetName">
+            {{ dropsetName }}
+          </option>
+        </select>
       </div>
       <div class="exercise-input">
         <label for="notes">Notes:</label>

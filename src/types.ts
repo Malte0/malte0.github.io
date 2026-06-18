@@ -23,5 +23,6 @@ export type ExerciseData = {
     weight?: number;
     breakTime?: number;
     date: string;
+    dropset?: string;
     notes?: string;
 }
