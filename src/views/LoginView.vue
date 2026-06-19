@@ -48,7 +48,6 @@ async function handleAuthClick() {
   <div>
     <h1>Login</h1>
     <div class="login-view-input-container">
-      <input type="text" placeholder="Client ID" v-model="clientId" />
       <input type="text" placeholder="API Key" v-model="apiKey" />
       <button @click="handleAuthClick">Log in</button>
     </div>

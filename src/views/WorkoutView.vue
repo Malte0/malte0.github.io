@@ -7,7 +7,9 @@ const SHEET_ID = "1lY4UddBpoSP9QQ4UXA9tfwbl5pRMvZbMSuiamklBRO8";
 const sheetTitles = ref<string[]>([]);
 const selectedSheetTitle = ref("");
 const sheetStatus = ref("Checking authentication...");
-const sheetContent = ref("");
+const sheetContent = ref<string[][]>([[]]);
+
+const isDevelopment = import.meta.env.DEV;
 
 async function initializeSheetView() {
 	if (!gapiInitialized.value) {
@@ -48,7 +50,7 @@ async function readSheetContents() {
 		const sheetTitle = selectedSheetTitle.value;
 
 		if (!sheetTitle) {
-			sheetContent.value = "No sheet selected.";
+			sheetContent.value = [["No sheet selected."]];
 			return;
 		}
 
@@ -58,9 +60,9 @@ async function readSheetContents() {
 			range: `${sheetTitle}!A:Z`,
 		});
 
-		sheetContent.value = JSON.stringify(valuesResponse.result.values ?? [], null, 2);
-		if (sheetContent.value === "[]") {
-			sheetContent.value = "Sheet is empty.";
+		sheetContent.value = (valuesResponse.result.values ?? []) as string[][];
+		if (sheetContent.value.length === 0) {
+			sheetContent.value = [["Sheet is empty."]] as string[][];
 		}
 	} catch (err: any) {
 		sheetStatus.value = err?.result?.error?.message || err?.message || String(err);
@@ -86,8 +88,68 @@ watch(gapiInitialized, async () => {
 			</select>
 			<button @click="refreshSheets">Refresh</button>
 		</div>
-		<div>
-			{{ sheetContent }}
+		<div v-for="(row, rowIndex) in sheetContent.slice(1)" :key="rowIndex" class="workout-exercise">
+			<div class="workout-exercise-header">
+				<div class="workout-exercise-name">
+					{{ row[0] }}
+				</div>
+				<div class="workout-exercise-progression">
+					{{ row[1] }}
+				</div>
+				<div class="workout-exercise-weight">
+					Weight: {{ row[3] || 0 }}
+				</div>
+			</div>
+			<div class="workout-exercise-header" v-if="row[5] || row[6]">
+				<div class="workout-exercise-name">
+					{{ row[5] }}
+				</div>
+				<div class="workout-exercise-progression">
+					{{ row[6] }}
+				</div>
+				<div class="workout-exercise-weight">
+					Weight: {{ row[7] || 0 }}
+				</div>
+			</div>
+			<div class="workout-exercise-header" v-if="row[7] || row[8]">
+				<div class="workout-exercise-name">
+					{{ row[8] }}
+				</div>
+				<div class="workout-exercise-progression">
+					{{ row[9] }}
+				</div>
+				<div class="workout-exercise-weight">
+					Weight: {{ row[10] || 0 }}
+				</div>
+			</div>
+			<div class="workout-exercise-header" v-if="row[7] || row[8]">
+				<div class="workout-exercise-name">
+					{{ row[11] }}
+				</div>
+				<div class="workout-exercise-progression">
+					{{ row[12] }}
+				</div>
+				<div class="workout-exercise-weight">
+					Weight: {{ row[13] || 0 }}
+				</div>
+			</div>
+			<div class="workout-exercise-sets">
+				Sets: {{ row[2] }}
+			</div>
+			<div class="workout-exercise-time">
+				Break Time: {{ row[4] || 0 }}min
+			</div>
+		</div>
+		<div v-if="isDevelopment">
+			<table>
+				<tbody>
+					<tr v-for="(row, rowIndex) in sheetContent" :key="rowIndex">
+						<td v-for="(cell, cellIndex) in row" :key="cellIndex">
+							{{ cell }}
+						</td>
+					</tr>
+				</tbody>
+			</table>
 		</div>
 		<div v-if="sheetStatus">
 			{{ sheetStatus }}
@@ -96,6 +158,35 @@ watch(gapiInitialized, async () => {
 </template>
 
 <style scoped>
+.workout-exercise-body {
+	display: flex;
+	gap: 1rem;
+	margin-top: 0.5rem;
+}
+
+.workout-exercise-header {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	margin-bottom: 0.5rem;
+}
+
+.workout-exercise-name {
+	font-weight: 600;
+	font-size: 1.1rem;
+}
+
+.workout-exercise {
+	display: flex;
+	flex-direction: column;
+	padding: 0.75rem;
+	border: 1px solid #d0d7de;
+	border-radius: 10px;
+	background: #f6f8fa;
+	color: #24292f;
+	margin-bottom: 1rem;
+}
+
 .toolbar {
 	display: flex;
 	align-items: center;
