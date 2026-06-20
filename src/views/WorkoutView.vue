@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from "vue";
 import { gapiInitialized, isAuthenticated, restoreStoredAuth } from "../excel-db/authentication";
+import { getSheetNames } from "../excel-db/db-utils";
+import type { Workout } from "../types";
+import { useRouter } from "vue-router";
 
-const SHEET_ID = "1lY4UddBpoSP9QQ4UXA9tfwbl5pRMvZbMSuiamklBRO8";
-
+const router = useRouter();
+const SHEET_ID = import.meta.env.VITE_WORKOUT_SHEET_ID;
 const sheetTitles = ref<string[]>([]);
 const selectedSheetTitle = ref("");
 const sheetStatus = ref("Checking authentication...");
-const sheetContent = ref<string[][]>([[]]);
 
-const isDevelopment = import.meta.env.DEV;
+const exerciseNames = ref<string[]>([]);
+
+const workoutInGoogleSheet = ref<Workout[]>([]);
+const updatedWorkout = ref<Workout[]>([]);
 
 async function initializeSheetView() {
 	if (!gapiInitialized.value) {
@@ -45,12 +50,39 @@ async function getSheetTitles() {
 	return spreadsheetResponse.result.sheets?.map((sheet: any) => sheet.properties?.title) ?? [];
 }
 
+// Parse string[][] into Workout[] using index assignment
+function sheetsFormat2Dictionary(sheetsFormat: string[][]): Workout[] {
+	const workout: Workout[] = [];
+	for (const row of sheetsFormat) {
+		workout.push({
+			name: row[0] ?? "",
+			progression: row[1] ?? "",
+			sets: Number(row[2]) || 0,
+			weight: row[3] || "",
+			breakTime: Number(row[4]) || 0,
+			dropset: row[5] || "",
+			dropsetProgression: row[6] || "",
+			dropsetWeight: row[7] || "",
+			superset: row[8] || "",
+			supersetProgression: row[9] || "",
+			supersetWeight: row[10] || "",
+			triset: row[11] || "",
+			trisetProgression: row[12] || "",
+			trisetWeight: row[13] || "",
+		});
+	}
+	return workout;
+}
+
 async function readSheetContents() {
+	sheetTitles.value = await getSheetNames(false);
+	exerciseNames.value = await getSheetNames(true);
 	try {
 		const sheetTitle = selectedSheetTitle.value;
 
 		if (!sheetTitle) {
-			sheetContent.value = [["No sheet selected."]];
+			workoutInGoogleSheet.value = [];
+			updatedWorkout.value = [];
 			return;
 		}
 
@@ -60,9 +92,12 @@ async function readSheetContents() {
 			range: `${sheetTitle}!A:Z`,
 		});
 
-		sheetContent.value = (valuesResponse.result.values ?? []) as string[][];
-		if (sheetContent.value.length === 0) {
-			sheetContent.value = [["Sheet is empty."]] as string[][];
+		workoutInGoogleSheet.value = sheetsFormat2Dictionary(valuesResponse.result.values ?? []);
+		updatedWorkout.value = JSON.parse(JSON.stringify(workoutInGoogleSheet.value)); // Deep copy for change tracking
+		console.log(updatedWorkout.value);
+		if (workoutInGoogleSheet.value.length === 0) {
+			workoutInGoogleSheet.value = [];
+			updatedWorkout.value = [];
 		}
 	} catch (err: any) {
 		sheetStatus.value = err?.result?.error?.message || err?.message || String(err);
@@ -76,6 +111,21 @@ onMounted(async () => {
 watch(gapiInitialized, async () => {
 	await initializeSheetView();
 });
+
+function hasChanges(): boolean {
+	return JSON.stringify(workoutInGoogleSheet.value) !== JSON.stringify(updatedWorkout.value);
+}
+
+function startWorkout() {
+	if (hasChanges() && !confirm("Unsaved changes. Save changes?")) {
+		return;
+	}
+	router.push("/training");
+}
+
+function resetWorkout() {
+	updatedWorkout.value = JSON.parse(JSON.stringify(workoutInGoogleSheet.value));
+}
 </script>
 
 <template>
@@ -88,68 +138,70 @@ watch(gapiInitialized, async () => {
 			</select>
 			<button @click="refreshSheets">Refresh</button>
 		</div>
-		<div v-for="(row, rowIndex) in sheetContent.slice(1)" :key="rowIndex" class="workout-exercise">
+		<div v-for="(row, rowIndex) in updatedWorkout.slice(1)" :key="rowIndex" class="workout-exercise">
 			<div class="workout-exercise-header">
-				<div class="workout-exercise-name">
-					{{ row[0] }}
+				<div class="workout-exercise-sets">
+					Sets: {{ row.sets }}
 				</div>
-				<div class="workout-exercise-progression">
-					{{ row[1] }}
-				</div>
-				<div class="workout-exercise-weight">
-					Weight: {{ row[3] || 0 }}
+				<div class="workout-exercise-time">
+					Break Time: {{ row.breakTime || 0 }}min
 				</div>
 			</div>
-			<div class="workout-exercise-header" v-if="row[5] || row[6]">
-				<div class="workout-exercise-name">
-					{{ row[5] }}
+			<div class="workout-exercise-body">
+				<div class="workout-exercise-row">
+					<div class="workout-exercise-name">
+						<select v-model="updatedWorkout[rowIndex + 1]!.name">
+							<option v-for="name in exerciseNames" :key="name" :value="name">
+								{{ name }}
+							</option>
+						</select>
+					</div>
+					<div class="workout-exercise-progression">
+						{{ row.progression }}
+					</div>
+					<div class="workout-exercise-weight">
+						Weight: {{ row.weight || 0 }}{{ Number.isNaN(row.weight) ? '' : 'kg' }}
+					</div>
 				</div>
-				<div class="workout-exercise-progression">
-					{{ row[6] }}
+				<div v-if="row.dropset" class="workout-exercise-row">
+					<div class="workout-exercise-name">
+						Dropset: {{ row.dropset }}
+					</div>
+					<div class="workout-exercise-progression">
+						{{ row.dropsetProgression }}
+					</div>
+					<div class="workout-exercise-weight">
+						Weight: {{ row.dropsetWeight || 0 }}{{ Number.isNaN(row.dropsetWeight) ? '' : 'kg' }}
+					</div>
 				</div>
-				<div class="workout-exercise-weight">
-					Weight: {{ row[7] || 0 }}
+				<div v-if="row.superset" class="workout-exercise-row">
+					<div class="workout-exercise-name">
+						Superset: {{ row.superset }}
+					</div>
+					<div class="workout-exercise-progression">
+						{{ row.supersetProgression }}
+					</div>
+					<div class="workout-exercise-weight">
+						Weight: {{ row.supersetWeight || 0 }}{{ Number.isNaN(row.supersetWeight) ? '' : 'kg' }}
+					</div>
 				</div>
-			</div>
-			<div class="workout-exercise-header" v-if="row[7] || row[8]">
-				<div class="workout-exercise-name">
-					{{ row[8] }}
+				<div v-if="row.triset" class="workout-exercise-row">
+					<div class="workout-exercise-name">
+						Triset: {{ row.triset }}
+					</div>
+					<div class="workout-exercise-progression">
+						{{ row.trisetProgression }}
+					</div>
+					<div class="workout-exercise-weight">
+						Weight: {{ row.trisetWeight || 0 }}{{ Number.isNaN(row.trisetWeight) ? '' : 'kg' }}
+					</div>
 				</div>
-				<div class="workout-exercise-progression">
-					{{ row[9] }}
-				</div>
-				<div class="workout-exercise-weight">
-					Weight: {{ row[10] || 0 }}
-				</div>
-			</div>
-			<div class="workout-exercise-header" v-if="row[7] || row[8]">
-				<div class="workout-exercise-name">
-					{{ row[11] }}
-				</div>
-				<div class="workout-exercise-progression">
-					{{ row[12] }}
-				</div>
-				<div class="workout-exercise-weight">
-					Weight: {{ row[13] || 0 }}
-				</div>
-			</div>
-			<div class="workout-exercise-sets">
-				Sets: {{ row[2] }}
-			</div>
-			<div class="workout-exercise-time">
-				Break Time: {{ row[4] || 0 }}min
 			</div>
 		</div>
-		<div v-if="isDevelopment">
-			<table>
-				<tbody>
-					<tr v-for="(row, rowIndex) in sheetContent" :key="rowIndex">
-						<td v-for="(cell, cellIndex) in row" :key="cellIndex">
-							{{ cell }}
-						</td>
-					</tr>
-				</tbody>
-			</table>
+		<div class="workout-buttons">
+			<button :disabled="!hasChanges()" @click="resetWorkout">Reset</button>
+			<button :disabled="!hasChanges()" @click="() => console.log('Save clicked')">Save</button>
+			<button @click="startWorkout">Start Workout</button>
 		</div>
 		<div v-if="sheetStatus">
 			{{ sheetStatus }}
@@ -158,22 +210,34 @@ watch(gapiInitialized, async () => {
 </template>
 
 <style scoped>
+.workout-buttons {
+	display: flex;
+	gap: 0.75rem;
+	margin-top: 1rem;
+}
+
 .workout-exercise-body {
 	display: flex;
+	flex-direction: column;
 	gap: 1rem;
 	margin-top: 0.5rem;
 }
 
-.workout-exercise-header {
+.workout-exercise-row {
 	display: flex;
-	align-items: center;
 	gap: 1rem;
-	margin-bottom: 0.5rem;
 }
 
-.workout-exercise-name {
-	font-weight: 600;
-	font-size: 1.1rem;
+.workout-exercise-header {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-bottom: 1rem;
+	padding: 0.5rem;
+	border-bottom: 1px solid #d0d7de;
+	background: hsl(210, 24%, 83%);
+	border-radius: 10px 10px 0 0;
 }
 
 .workout-exercise {

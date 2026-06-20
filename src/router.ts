@@ -5,6 +5,7 @@ import HomeView from "./views/HomeView.vue";
 import LoginView from "./views/LoginView.vue";
 import RawDataView from "./views/RawDataView.vue";
 import WorkoutView from "./views/WorkoutView.vue";
+import TrainingView from "./views/TrainingView.vue";
 
 const routes = [
   { path: "/", component: LoginView },
@@ -13,6 +14,7 @@ const routes = [
   { path: "/login", component: LoginView },
   { path: "/rawData", component: RawDataView },
   { path: "/workouts", component: WorkoutView },
+  { path: "/training", component: TrainingView },
   { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 

@@ -3,7 +3,8 @@
 import type { ExerciseData } from "../types";
 import { onMounted, ref, watch } from "vue";
 import { gapiInitialized } from "../excel-db/authentication";
-const SHEET_ID = import.meta.env.VITE_SHEET_ID;
+import { getSheetNames } from "../excel-db/db-utils";
+const SHEET_ID = import.meta.env.VITE_EXERCISE_SHEET_ID;
 
 const today: string = new Date().toISOString().split("T")[0] as string; // get today's date in YYYY-MM-DD format
 const sheetNames = ref<string[]>([]);
@@ -19,7 +20,7 @@ const exercise = ref<ExerciseData>({
   timeSet2: 0,
   timeSet3: 0,
   timeSet4: 0,
-  weight: 0,
+  weight: "",
   breakTime: 0,
   date: today,
   dropset: "",
@@ -72,17 +73,8 @@ async function submitExercise() {
   }
 }
 
-async function getSheetTitles() {
-  // @ts-ignore
-  const spreadsheetResponse = await gapi.client.sheets.spreadsheets.get({
-    spreadsheetId: SHEET_ID,
-  });
-
-  return spreadsheetResponse.result.sheets?.map((sheet: any) => sheet.properties?.title) ?? [];
-}
-
-async function getSheetNames() {
-  sheetNames.value = await getSheetTitles();
+async function getSheetNames2() {
+  sheetNames.value = await getSheetNames(true);
   if (!exercise.value.name && sheetNames.value.length > 0) {
     exercise.value.name = sheetNames.value[0]!;
   }
@@ -134,10 +126,10 @@ async function onProgressionChange() {
         exercise.value.timeSet2 = Number(rows[i][7]) || 0;
         exercise.value.timeSet3 = Number(rows[i][8]) || 0;
         exercise.value.timeSet4 = Number(rows[i][9]) || 0;
-        exercise.value.weight = Number(rows[i][10]) || 0;
+        exercise.value.weight = rows[i][10] || "";
         exercise.value.dropset = rows[i][11] || "";
-        exercise.value.breakTime = Number(rows[i][11]) || 0;
-        exercise.value.notes = rows[i][12] || "";
+        exercise.value.breakTime = Number(rows[i][12]) || 0;
+        exercise.value.notes = rows[i][13] || "";
         break;
       }
     }
@@ -146,13 +138,13 @@ async function onProgressionChange() {
 
 onMounted(async () => {
   if (gapiInitialized.value) {
-    await getSheetNames();
+    await getSheetNames2();
   }
 });
 
 watch(gapiInitialized, async (isLoaded) => {
   if (isLoaded) {
-    await getSheetNames();
+    await getSheetNames2();
   }
 });
 </script>
