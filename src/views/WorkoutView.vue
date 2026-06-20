@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from "vue";
 import { gapiInitialized, isAuthenticated, restoreStoredAuth } from "../excel-db/authentication";
-import { getSheetNames } from "../excel-db/db-utils";
+import { getProgressionNames, getSheetNames } from "../excel-db/db-utils";
 import type { Workout } from "../types";
 import { useRouter } from "vue-router";
 
@@ -12,6 +12,7 @@ const selectedSheetTitle = ref("");
 const sheetStatus = ref("Checking authentication...");
 
 const exerciseNames = ref<string[]>([]);
+const progressionNames = ref<Record<string, string[]>>({});
 
 const workoutInGoogleSheet = ref<Workout[]>([]);
 const updatedWorkout = ref<Workout[]>([]);
@@ -77,6 +78,10 @@ function sheetsFormat2Dictionary(sheetsFormat: string[][]): Workout[] {
 async function readSheetContents() {
 	sheetTitles.value = await getSheetNames(false);
 	exerciseNames.value = await getSheetNames(true);
+	progressionNames.value = {};
+	for (const exerciseName of exerciseNames.value) {
+		progressionNames.value[exerciseName] = await getProgressionNames(exerciseName);
+	}
 	try {
 		const sheetTitle = selectedSheetTitle.value;
 
@@ -94,7 +99,6 @@ async function readSheetContents() {
 
 		workoutInGoogleSheet.value = sheetsFormat2Dictionary(valuesResponse.result.values ?? []);
 		updatedWorkout.value = JSON.parse(JSON.stringify(workoutInGoogleSheet.value)); // Deep copy for change tracking
-		console.log(updatedWorkout.value);
 		if (workoutInGoogleSheet.value.length === 0) {
 			workoutInGoogleSheet.value = [];
 			updatedWorkout.value = [];
@@ -124,7 +128,44 @@ function startWorkout() {
 }
 
 function resetWorkout() {
+	console.log("Resetting workout to last saved state");
 	updatedWorkout.value = JSON.parse(JSON.stringify(workoutInGoogleSheet.value));
+}
+
+// writes updatedWorkout back to Google Sheets
+async function saveWorkout() {
+	console.log("Saving workout to Google Sheets");
+	const values = updatedWorkout.value.map((exercise) => [
+		exercise.name,
+		exercise.progression,
+		exercise.sets,
+		exercise.weight,
+		exercise.breakTime,
+		exercise.dropset,
+		exercise.dropsetProgression,
+		exercise.dropsetWeight,
+		exercise.superset,
+		exercise.supersetProgression,
+		exercise.supersetWeight,
+		exercise.triset,
+		exercise.trisetProgression,
+		exercise.trisetWeight,
+	]);
+
+	try {
+		// @ts-ignore
+		await gapi.client.sheets.spreadsheets.values.update({
+			spreadsheetId: SHEET_ID,
+			range: `${selectedSheetTitle.value}!A1`,
+			valueInputOption: "RAW",
+			resource: {
+				values,
+			},
+		});
+		workoutInGoogleSheet.value = JSON.parse(JSON.stringify(updatedWorkout.value));
+	} catch (err: any) {
+		sheetStatus.value = err?.result?.error?.message || err?.message || String(err);
+	}
 }
 </script>
 
@@ -141,10 +182,10 @@ function resetWorkout() {
 		<div v-for="(row, rowIndex) in updatedWorkout.slice(1)" :key="rowIndex" class="workout-exercise">
 			<div class="workout-exercise-header">
 				<div class="workout-exercise-sets">
-					Sets: {{ row.sets }}
+					Sets: <input v-model="updatedWorkout[rowIndex + 1]!.sets" type="number" />
 				</div>
 				<div class="workout-exercise-time">
-					Break Time: {{ row.breakTime || 0 }}min
+					Break Time: <input v-model="updatedWorkout[rowIndex + 1]!.breakTime" type="number" /> min
 				</div>
 			</div>
 			<div class="workout-exercise-body">
@@ -157,50 +198,78 @@ function resetWorkout() {
 						</select>
 					</div>
 					<div class="workout-exercise-progression">
-						{{ row.progression }}
+						<select v-model="updatedWorkout[rowIndex + 1]!.progression">
+							<option v-for="p in progressionNames[(updatedWorkout[rowIndex + 1]!.name) || ''] || []" :key="p" :value="p">
+								{{ p }}
+							</option>
+						</select>
 					</div>
-					<div class="workout-exercise-weight">
-						Weight: {{ row.weight || 0 }}{{ Number.isNaN(row.weight) ? '' : 'kg' }}
+					<div v-if="row.weight" class="workout-exercise-weight">
+						Weight: <input v-model="updatedWorkout[rowIndex + 1]!.weight" type="number" />{{ Number.isNaN(Number(updatedWorkout[rowIndex + 1]!.weight)) ? '' : 'kg' }}
 					</div>
 				</div>
 				<div v-if="row.dropset" class="workout-exercise-row">
 					<div class="workout-exercise-name">
-						Dropset: {{ row.dropset }}
+						<select v-model="updatedWorkout[rowIndex + 1]!.dropset">
+							<option v-for="name in exerciseNames" :key="name" :value="name">
+								{{ name }}
+							</option>
+						</select>
 					</div>
 					<div class="workout-exercise-progression">
-						{{ row.dropsetProgression }}
+						<select v-model="updatedWorkout[rowIndex + 1]!.dropsetProgression">
+							<option v-for="p in progressionNames[(updatedWorkout[rowIndex + 1]!.dropset) || ''] || []" :key="p" :value="p">
+								{{ p }}
+							</option>
+						</select>
 					</div>
-					<div class="workout-exercise-weight">
-						Weight: {{ row.dropsetWeight || 0 }}{{ Number.isNaN(row.dropsetWeight) ? '' : 'kg' }}
+					<div v-if="row.dropsetWeight" class="workout-exercise-weight">
+						Weight: <input v-model="updatedWorkout[rowIndex + 1]!.dropsetWeight" type="number" />{{ Number.isNaN(Number(updatedWorkout[rowIndex + 1]!.dropsetWeight)) ? '' : 'kg' }}
 					</div>
 				</div>
 				<div v-if="row.superset" class="workout-exercise-row">
 					<div class="workout-exercise-name">
-						Superset: {{ row.superset }}
+						<select v-model="updatedWorkout[rowIndex + 1]!.superset">
+							<option v-for="name in exerciseNames" :key="name" :value="name">
+								{{ name }}
+							</option>
+						</select>
 					</div>
 					<div class="workout-exercise-progression">
-						{{ row.supersetProgression }}
+						<select v-model="updatedWorkout[rowIndex + 1]!.supersetProgression">
+							<option v-for="p in progressionNames[(updatedWorkout[rowIndex + 1]!.superset) || ''] || []" :key="p" :value="p">
+								{{ p }}
+							</option>
+						</select>
 					</div>
-					<div class="workout-exercise-weight">
-						Weight: {{ row.supersetWeight || 0 }}{{ Number.isNaN(row.supersetWeight) ? '' : 'kg' }}
+					<div v-if="row.supersetWeight" class="workout-exercise-weight">
+						Weight: <input v-model="updatedWorkout[rowIndex + 1]!.supersetWeight" type="number" />{{ Number.isNaN(Number(updatedWorkout[rowIndex + 1]!.supersetWeight)) ? '' : 'kg' }}
 					</div>
 				</div>
 				<div v-if="row.triset" class="workout-exercise-row">
 					<div class="workout-exercise-name">
-						Triset: {{ row.triset }}
+						<select v-model="updatedWorkout[rowIndex + 1]!.triset">
+							<option v-for="name in exerciseNames" :key="name" :value="name">
+								{{ name }}
+							</option>
+						</select>
 					</div>
 					<div class="workout-exercise-progression">
-						{{ row.trisetProgression }}
+						<select v-model="updatedWorkout[rowIndex + 1]!.trisetProgression">
+							<option v-for="p in progressionNames[(updatedWorkout[rowIndex + 1]!.triset) || ''] || []" :key="p" :value="p">
+								{{ p }}
+							</option>
+						</select>
 					</div>
-					<div class="workout-exercise-weight">
-						Weight: {{ row.trisetWeight || 0 }}{{ Number.isNaN(row.trisetWeight) ? '' : 'kg' }}
+					<div v-if="row.trisetWeight" class="workout-exercise-weight">
+						Weight: <input v-model="updatedWorkout[rowIndex + 1]!.trisetWeight" type="number" />{{ Number.isNaN(Number(updatedWorkout[rowIndex + 1]!.trisetWeight)) ? '' : 'kg' }}
 					</div>
 				</div>
 			</div>
 		</div>
 		<div class="workout-buttons">
-			<button :disabled="!hasChanges()" @click="resetWorkout">Reset</button>
-			<button :disabled="!hasChanges()" @click="() => console.log('Save clicked')">Save</button>
+			<button @click="resetWorkout">Reset</button>
+			<button @click="saveWorkout">Save</button>
 			<button @click="startWorkout">Start Workout</button>
 		</div>
 		<div v-if="sheetStatus">
@@ -210,6 +279,8 @@ function resetWorkout() {
 </template>
 
 <style scoped>
+
+
 .workout-buttons {
 	display: flex;
 	gap: 0.75rem;
@@ -269,6 +340,10 @@ select {
 	line-height: 1.2;
 	box-shadow: 0 1px 2px rgba(27, 31, 36, 0.08);
 	appearance: none;
+}
+
+input[type='number'] {
+	width: 2rem;
 }
 
 select:hover {
