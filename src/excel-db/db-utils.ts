@@ -48,20 +48,21 @@ export async function getProgressionNames(exerciseName: string): Promise<string[
 }
 
 // Looks at exercises in workout and returns the first exercise that has not yet been completed on the current day
-export async function fetchCurrentWorkoutExercises(date: string, workout: string): Promise<string> {
+export async function fetchCurrentWorkoutExercise(date: string, workout: string): Promise<{exercise: string, progression: string}> {
   // First fetch all exercises in the workout (maybe optimize by giving as argument)
   // @ts-ignore
   const responseWorkouts = await gapi.client.sheets.spreadsheets.values.get({
     spreadsheetId: WORKOUT_SHEET_ID,
-    range: `${workout}!A2:A`, // Exercise names are in the first column
+    range: `${workout}!A2:B`, // Exercise names are in the first column
   });
-  const exercises = responseWorkouts.result.values ?? [];
-  const exerciseNames = exercises.map((row: any) => row[0]); // Assuming exercise names are in column A
+  const exerciseNames = responseWorkouts.result.values ?? [];
   console.log("Fetched exercises:", exerciseNames);
 
   // Second, check exercises if they have an entry for that day
-  let mostRecentExercise = "";
-  for (const exercise of exerciseNames) {
+  let mostRecentExercise = exerciseNames[0][0]; // Default to the first exercise if no progress is found
+  let progression = exerciseNames[0][1];
+
+  for (const exercise of exerciseNames.map((row: any) => row[0])) {
     // @ts-ignore
     const responseProgress = await gapi.client.sheets.spreadsheets.values.get({
       spreadsheetId: EXERCISE_SHEET_ID,
@@ -72,24 +73,36 @@ export async function fetchCurrentWorkoutExercises(date: string, workout: string
     for (const trainingDate of trainingDates) {
       if (trainingDate[0] === date) {
         mostRecentExercise = exercise;
+        progression = exerciseNames.find((row: any) => row[0] === exercise)?.[1] ?? "";
         break;
       }
     }
   }
-  return mostRecentExercise;
+  return {exercise: mostRecentExercise, progression: progression};
 }
 
 export async function getSetsDone(exercise: string, date: string): Promise<number> {
+  // first check if there is an entry for that day
+  // @ts-ignore
+  const dates = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: EXERCISE_SHEET_ID,
+    range: `${exercise}!A2:A`,
+  });
+  const trainingDates = dates.result.values ?? [];
+  const dateFound = trainingDates.some((trainingDate: any) => trainingDate[0] === date);
+  if (!dateFound) {
+    return 0; // No sets done if there is no entry for that day
+  }
   // @ts-ignore
   const response = await gapi.client.sheets.spreadsheets.values.get({
     spreadsheetId: EXERCISE_SHEET_ID,
     range: `${exercise}!C2:J`,
   });
-  let trainingDates: string[][] = response.result.values ?? [[]];
+  let sets: string[][] = response.result.values ?? [[]];
   // Filter out empty strings and falsy cells from each row
-  trainingDates = trainingDates.map((row) => row.filter((cell) => !!cell));
-  console.log(trainingDates);
-  return trainingDates[trainingDates.length - 1]?.length ?? 0; 
+  sets = sets.map((row) => row.filter((cell) => !!cell));
+  console.log(sets);
+  return sets[sets.length - 1]?.length ?? 0; 
 }
 
 export async function getSetsPlanned(workout: string, exercise: string): Promise<number> {
@@ -106,4 +119,22 @@ export async function getSetsPlanned(workout: string, exercise: string): Promise
     }
   }
   return 0;
+}
+
+export async function getExpectedReps(exercise: string, progressionName: string, set: number): Promise<number> {
+  // @ts-ignore
+  const response = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: EXERCISE_SHEET_ID,
+    range: `${exercise}!A2:J`,
+  });
+  const exerciseData = response.result.values ?? [[]];
+  console.log("Fetched exercise data for expected reps:", exerciseData);
+  let expectedReps = 8;
+  for (const row of exerciseData) {
+    if (row[1] === progressionName) { 
+      expectedReps = parseInt(row[set + 1], 10); // Assuming set 1 reps are in column C, set 2 in D, etc.
+    }
+  }
+  console.log(`Expected reps for exercise ${exercise}, progression ${progressionName}, set ${set}:`, expectedReps);
+  return expectedReps;
 }

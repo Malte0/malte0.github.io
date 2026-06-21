@@ -7,7 +7,8 @@ const chainVisual = ref('⛓️')
 
 const props = defineProps<{
   unilateral: boolean,
-  expectedReps: number
+  expectedReps: number,
+  repsChangeCallback: (repsDone: number) => void
 }>()
 
 const numberOfRepsDone = ref(8) // reps for left side
@@ -34,6 +35,7 @@ watch(numberOfRepsDone, (newReps) => {
     numberOfRepsDoneRight.value = newReps;
     // console.log(numberOfRepsDoneRight.value)
   }
+  props.repsChangeCallback(newReps);
 });
 </script>
 
