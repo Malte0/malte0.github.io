@@ -124,7 +124,7 @@ function startWorkout() {
 	if (hasChanges() && !confirm("Unsaved changes. Save changes?")) {
 		return;
 	}
-	router.push("/training");
+	router.push("/training/" + encodeURIComponent(selectedSheetTitle.value));
 }
 
 function resetWorkout() {

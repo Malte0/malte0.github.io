@@ -78,3 +78,32 @@ export async function fetchCurrentWorkoutExercises(date: string, workout: string
   }
   return mostRecentExercise;
 }
+
+export async function getSetsDone(exercise: string, date: string): Promise<number> {
+  // @ts-ignore
+  const response = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: EXERCISE_SHEET_ID,
+    range: `${exercise}!C2:J`,
+  });
+  let trainingDates: string[][] = response.result.values ?? [[]];
+  // Filter out empty strings and falsy cells from each row
+  trainingDates = trainingDates.map((row) => row.filter((cell) => !!cell));
+  console.log(trainingDates);
+  return trainingDates[trainingDates.length - 1]?.length ?? 0; 
+}
+
+export async function getSetsPlanned(workout: string, exercise: string): Promise<number> {
+  // @ts-ignore
+  const response = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: WORKOUT_SHEET_ID,
+    range: `${workout}!A2:C`,
+  });
+  const workoutRows = response.result.values ?? [[]];
+  console.log("Fetched workout data for sets planned:", workoutRows);
+  for (const row of workoutRows) {
+    if (row[0] === exercise) {
+      return parseInt(row[2], 10); // Assuming sets planned are in column C
+    }
+  }
+  return 0;
+}

@@ -14,7 +14,7 @@ const routes = [
   { path: "/login", component: LoginView },
   { path: "/rawData", component: RawDataView },
   { path: "/workouts", component: WorkoutView },
-  { path: "/training", component: TrainingView },
+  { path: "/training/:pathMatch(.*)*", component: TrainingView },
   { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 
