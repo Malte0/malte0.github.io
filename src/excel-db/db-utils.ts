@@ -46,3 +46,35 @@ export async function getProgressionNames(exerciseName: string): Promise<string[
   });
   return uniqueNames.size > 0 ? Array.from(uniqueNames) : [""]; // Return [""] if no progression names are found
 }
+
+// Looks at exercises in workout and returns the first exercise that has not yet been completed on the current day
+export async function fetchCurrentWorkoutExercises(date: string, workout: string): Promise<string> {
+  // First fetch all exercises in the workout (maybe optimize by giving as argument)
+  // @ts-ignore
+  const responseWorkouts = await gapi.client.sheets.spreadsheets.values.get({
+    spreadsheetId: WORKOUT_SHEET_ID,
+    range: `${workout}!A2:A`, // Exercise names are in the first column
+  });
+  const exercises = responseWorkouts.result.values ?? [];
+  const exerciseNames = exercises.map((row: any) => row[0]); // Assuming exercise names are in column A
+  console.log("Fetched exercises:", exerciseNames);
+
+  // Second, check exercises if they have an entry for that day
+  let mostRecentExercise = "";
+  for (const exercise of exerciseNames) {
+    // @ts-ignore
+    const responseProgress = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: EXERCISE_SHEET_ID,
+      range: `${exercise}!A2:A`,
+    });
+    const trainingDates = responseProgress.result.values ?? [];
+    console.log("Fetched progress data:", trainingDates);
+    for (const trainingDate of trainingDates) {
+      if (trainingDate[0] === date) {
+        mostRecentExercise = exercise;
+        break;
+      }
+    }
+  }
+  return mostRecentExercise;
+}
