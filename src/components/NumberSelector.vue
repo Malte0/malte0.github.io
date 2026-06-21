@@ -18,7 +18,6 @@ function onScrollEnd() {
   const centerY = rect.top + rect.height / 2
   
   const elementAtCenter = document.elementFromPoint(centerX, centerY) as HTMLElement | null
-  console.log(elementAtCenter)
 
   if (!elementAtCenter) {
     console.log('No rep found at center')
@@ -27,16 +26,13 @@ function onScrollEnd() {
 
   const reps = Array.from(selector.querySelectorAll<HTMLElement>(`.rep-number-${props.identifier}`))
   const index = MAX_REPS - reps.indexOf(elementAtCenter) - 1
-  console.log('Center rep index:', index)
   numberOfRepsDone.value = index
 }
 
 setTimeout(() => {
-  console.log(numberOfRepsDone.value)
   Array.from(document.querySelectorAll<HTMLElement>(`.rep-number-${props.identifier}`)).forEach((el, i) => {
     if (MAX_REPS - i - 1 === numberOfRepsDone.value) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      console.log('Initial scroll to rep:', MAX_REPS - i - 1)
     }
   })
 }, 0)
