@@ -7,76 +7,19 @@ https://jlongster.com/future-sql-web
 
 App, die workouts so trackt, dass während einem workout die aktueller Übung angezeigt wird, dazu die Wiederholungen beim jeweiligen Satz I'm zuvorigen Workout und daruntwr einfach nur ein digital es Zahlemrad mir dem man einstellt kann Wie viel/Wie lange man eine Übung gemacht hat, und dann noch weiter dr7cken kann nächsten Satz Oder naechsten übung zu kommen
 
-## Write from static site to Google Sheets
+Ideen:
 
-Use a Google Apps Script web app as a tiny backend. The static Vue app posts exercise JSON to that endpoint.
+Level, Badges, Achievements beim Training
+Level
+Anzahl abgeschlossene Trainings
+Der Baum graph
+Anzahl abgeschlossene Trainings
+Abgeschlossene Trainingstage, die abgehakt werden können, bzw, durch die Eingabe der Daten abgehakt werden
+Mit Fortschrittsbalken wie weit das Training fortgeschritten ist
+Trainingsowchen wie bei Luis 5/7 abgeschlossene Trainings
+Achievements für Meilensteine wie den Baumgraphit Progressions
+Visuelles Feedback, wenn ich mehr Wiederholungen schaffe
 
-### 1) Create the Google Sheet
-
-Create a sheet with this first row:
-
-timestamp | name | sets | reps | date | weight | time | notes
-
-### 2) Create Apps Script web app
-
-In the sheet, open Extensions > Apps Script and paste this code:
-
-```javascript
-const SHEET_NAME = 'Sheet1';
-
-function doPost(e) {
-	try {
-		const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-		if (!sheet) {
-			return jsonResponse({ ok: false, error: 'Sheet not found' }, 500);
-		}
-
-		const data = JSON.parse(e.postData.contents || '{}');
-		sheet.appendRow([
-			new Date(),
-			data.name || '',
-			data.sets || '',
-			data.reps || '',
-			data.date || '',
-			data.weight || '',
-			data.time || '',
-			data.notes || '',
-		]);
-
-		return jsonResponse({ ok: true });
-	} catch (err) {
-		return jsonResponse({ ok: false, error: String(err) }, 500);
-	}
-}
-
-function doGet() {
-	return jsonResponse({ ok: true, status: 'alive' });
-}
-
-function jsonResponse(obj, statusCode) {
-	return ContentService.createTextOutput(JSON.stringify(obj))
-		.setMimeType(ContentService.MimeType.JSON);
-}
-```
-
-Deploy it via Deploy > New deployment > Web app:
-
-- Execute as: Me
-- Who has access: Anyone
-
-Copy the web app URL.
-
-### 3) Add endpoint to Vite env
-
-Copy `.env.example` to `.env` and set:
-
-```bash
-VITE_GOOGLE_SHEETS_WEBAPP_URL=https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-```
-
-Then restart the Vite dev server.
-
-### 4) App-side integration
-
-The app now posts from `src/excel-db/writeExercise.ts` to your Apps Script URL.
-The form in `src/views/ExerciseInputView.vue` shows success/failure feedback after submit.
+Ähnlich wie Luca einen Art Streak tracker schreiben, für Aktivitäten, die ich regelmäßig machen möchte wie dehnen
+Zum Beispiel Spanisch lernen
+System schaffen, weshalb diese Einträge spaß machen und eine Belohnung sind, damit es nicht zur Arbeit wird
