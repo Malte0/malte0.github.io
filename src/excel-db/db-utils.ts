@@ -138,3 +138,48 @@ export async function getExpectedReps(exercise: string, progressionName: string,
   console.log(`Expected reps for exercise ${exercise}, progression ${progressionName}, set ${set}:`, expectedReps);
   return expectedReps;
 }
+
+export async function writeExerciseData(sheedId: string, exercise: ExerciseData) {
+  try {
+    // Get all values to find the first empty row
+    // @ts-ignore
+    const response = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: sheedId,
+      range: `${exercise.name}!A:A`,
+    });
+
+    const rows = response.result.values ?? [];
+    const firstEmptyRow = rows.length + 1;
+
+    // Prepare the data row to write
+    const dataRow = [
+      exercise.date,
+      exercise.progression,
+      exercise.repsSet1 || "",
+      exercise.repsSet2 || "",
+      exercise.repsSet3 || "",
+      exercise.repsSet4 || "",
+      exercise.timeSet1 || "",
+      exercise.timeSet2 || "",
+      exercise.timeSet3 || "",
+      exercise.timeSet4 || "",
+      exercise.weight || "",
+      exercise.breakTime || "",
+      exercise.notes,
+    ];
+
+    // @ts-ignore
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: sheedId,
+      range: `${exercise.name}!A${firstEmptyRow}`,
+      valueInputOption: "RAW",
+      resource: {
+        values: [dataRow],
+      },
+    });
+
+    return true;
+  } catch (err: any) {
+    return false;
+  }
+}

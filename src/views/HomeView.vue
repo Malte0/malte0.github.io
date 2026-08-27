@@ -5,9 +5,10 @@ const router = useRouter();
 
 const views = [
 	{ label: "Login", path: "/login" },
-	{ label: "Exercise Input", path: "/input" },
+	{ label: "Exercise Input", path: "/input/none/none" },
 	{ label: "Raw Data", path: "/rawData" },
 	{ label: "Workouts", path: "/workouts" },
+	{ label: "Exercise List", path: "/exerciseList" },
 ];
 
 function goTo(path: string) {

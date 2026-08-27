@@ -2,9 +2,13 @@
 <script setup lang="ts">
 import type { ExerciseData } from "../types";
 import { onMounted, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import { gapiInitialized } from "../excel-db/authentication";
+import { writeExerciseData } from "../excel-db/db-utils";
 import { getSheetNames } from "../excel-db/db-utils";
 const SHEET_ID = import.meta.env.VITE_EXERCISE_SHEET_ID;
+
+const route = useRoute();
 
 const today: string = new Date().toISOString().split("T")[0] as string; // get today's date in YYYY-MM-DD format
 const sheetNames = ref<string[]>([]);
@@ -28,58 +32,23 @@ const exercise = ref<ExerciseData>({
 });
 const submitStatus = ref("");
 
-async function submitExercise() {
-  try {
-    // Get all values to find the first empty row
-    // @ts-ignore
-    const response = await gapi.client.sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `${exercise.value.name}!A:A`,
-    });
-
-    const rows = response.result.values ?? [];
-    const firstEmptyRow = rows.length + 1;
-
-    // Prepare the data row to write
-    const dataRow = [
-      exercise.value.date,
-      exercise.value.progression,
-      exercise.value.repsSet1 || "",
-      exercise.value.repsSet2 || "",
-      exercise.value.repsSet3 || "",
-      exercise.value.repsSet4 || "",
-      exercise.value.timeSet1 || "",
-      exercise.value.timeSet2 || "",
-      exercise.value.timeSet3 || "",
-      exercise.value.timeSet4 || "",
-      exercise.value.weight || "",
-      exercise.value.breakTime || "",
-      exercise.value.notes,
-    ];
-
-    // @ts-ignore
-    await gapi.client.sheets.spreadsheets.values.update({
-      spreadsheetId: SHEET_ID,
-      range: `${exercise.value.name}!A${firstEmptyRow}`,
-      valueInputOption: "RAW",
-      resource: {
-        values: [dataRow],
-      },
-    });
-
-    submitStatus.value = "Saved to Google Sheet.";
-  } catch (err: any) {
-    submitStatus.value = `Save failed: ${err.message ?? "Unknown error"}`;
-  }
-}
-
 async function getSheetNames2() {
   sheetNames.value = await getSheetNames(true);
-  if (!exercise.value.name && sheetNames.value.length > 0) {
+  const urlExercise = String(route.query.exercise ?? "").trim();
+  const urlProgression = String(route.query.progression ?? "").trim();
+
+  if (urlExercise && sheetNames.value.includes(urlExercise)) {
+    exercise.value.name = urlExercise;
+  } else if (!exercise.value.name && sheetNames.value.length > 0) {
     exercise.value.name = sheetNames.value[0]!;
   }
 
   await onExerciseNameChange();
+
+  if (urlProgression) {
+    exercise.value.progression = urlProgression;
+    await onProgressionChange();
+  }
 }
 
 async function getProgressionNames(sheetName: string) {
@@ -207,7 +176,7 @@ watch(gapiInitialized, async (isLoaded) => {
         <textarea id="notes" v-model="exercise.notes"></textarea>
       </div>
     </div>
-    <button id="exercise-input-submit-button" @click="submitExercise">Submit</button>
+    <button id="exercise-input-submit-button" @click="() => writeExerciseData(SHEET_ID, exercise)">Submit</button>
     <p v-if="submitStatus" class="submit-status">{{ submitStatus }}</p>
   </div>
 </template>
