@@ -34,10 +34,10 @@ const submitStatus = ref("");
 
 async function getSheetNames2() {
   sheetNames.value = await getSheetNames(true);
-  const urlExercise = String(route.query.exercise ?? "").trim();
-  const urlProgression = String(route.query.progression ?? "").trim();
+  const urlExercise = String(route.params.exercise ?? route.query.exercise ?? "").trim();
+  const urlProgression = String(route.params.progression ?? route.query.progression ?? "").trim();
 
-  if (urlExercise && sheetNames.value.includes(urlExercise)) {
+  if (urlExercise && urlExercise !== "none" && sheetNames.value.includes(urlExercise)) {
     exercise.value.name = urlExercise;
   } else if (!exercise.value.name && sheetNames.value.length > 0) {
     exercise.value.name = sheetNames.value[0]!;
@@ -45,7 +45,7 @@ async function getSheetNames2() {
 
   await onExerciseNameChange();
 
-  if (urlProgression) {
+  if (urlProgression && urlProgression !== "none") {
     exercise.value.progression = urlProgression;
     await onProgressionChange();
   }
