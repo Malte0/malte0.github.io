@@ -2,7 +2,7 @@
 import { onMounted, ref, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { gapiInitialized } from '../excel-db/authentication';
-import { getProgressionNames, getSheetNames } from '../excel-db/db-utils';
+import { getExerciseProgressions, getProgressionNames, getSheetNames } from '../excel-db/db-utils';
 
 type exerciseListItem = {
     name: string;
@@ -12,7 +12,7 @@ type exerciseListItem = {
 const router = useRouter();
 const exerciseList = ref<exerciseListItem[]>([]);
 const searchQuery = ref<string>('');
-
+// Only show exercises and progressions that match search query, case insensitive
 const filteredExerciseList = computed(() => {
     const query = searchQuery.value.trim().toLowerCase();
 
@@ -26,19 +26,21 @@ const filteredExerciseList = computed(() => {
     });
 });
 
+const removeExerciseFromList = (exerciseName: string) => exerciseList.value = exerciseList.value.filter(e => e.name !== exerciseName);
+
 async function updateExerciseList() {
     exerciseList.value = [];
 
     try {
         const exerciseNames = await getSheetNames(true);
-
-        for (const exerciseName of exerciseNames) {
-            const progressions = await getProgressionNames(exerciseName);
-            exerciseList.value.push({ name: exerciseName, progressions });
+        const progressions = await getExerciseProgressions(exerciseNames);
+        for (const [exerciseName, progressionNames] of Object.entries(progressions)) {
+            removeExerciseFromList(exerciseName);
+            exerciseList.value.push({ name: exerciseName, progressions: progressionNames });
         }
     } catch (error) {
         console.error('Error fetching exercise list:', error);
-        exerciseList.value = []; // Fallback to default exercise in case of error
+        exerciseList.value = [];
     }
 }
 
@@ -49,7 +51,9 @@ function onExerciseClick(exercise: exerciseListItem, progression?: string) {
 }
 
 onMounted(async () => {
-    await updateExerciseList();
+    if (gapiInitialized.value) {
+        await updateExerciseList();
+    }
 });
 
 watch(gapiInitialized, async () => {
@@ -67,8 +71,10 @@ watch(gapiInitialized, async () => {
                 <h3 class="exercise-name" @click="onExerciseClick(exercise)">
                     {{ exercise.name }}
                 </h3>
-                <ul class="progression-list">
-                    <li class="progression-item" v-for="(progression, idx) in exercise.progressions" :key="idx" @click.stop="onExerciseClick(exercise, progression)" @click="onExerciseClick(exercise, progression)">
+                <ul v-if="!!exercise.progressions[0]" class="progression-list">
+                    <li class="progression-item" v-for="(progression, idx) in exercise.progressions" :key="idx"
+                        @click.stop="onExerciseClick(exercise, progression)"
+                        @click="onExerciseClick(exercise, progression)">
                         {{ progression }}
                     </li>
                 </ul>
@@ -80,7 +86,7 @@ watch(gapiInitialized, async () => {
 <style scoped>
 .exercise-list-container {
     max-width: 400px;
-    width: 400px;
+    width: 100%;
 }
 
 .search-container {
@@ -91,29 +97,33 @@ watch(gapiInitialized, async () => {
 .search-input {
     width: calc(100% - 1rem);
     padding: 0.5rem;
+    border-radius: 0.25rem;
+    border: 0;
 }
 
 .exercise-button {
-    width: calc(100% - 2rem);
-    padding: 0.5rem;
+    width: calc(100% - 1rem);
+    padding: 0.25rem 0.25rem 0.5rem 0.25rem;
     background-color: #444444;
-    margin: 5px 0;
+    border-radius: 0.25rem;
+    margin: 0.5rem 0;
     cursor: pointer;
-}
-
-.exercise-button:hover {
-    background-color: #555555;
-}
-
-.exercise-button:active {
-    background-color: #666666;
+    display: flex;
+    flex-direction: column;
 }
 
 .exercise-name {
     font-weight: bold;
-    margin: 8px;
+    margin: 0;
+    padding: 4px 8px;
+    font-size: 1rem;
     text-align: left;
-    background-color: hsl(0, 0%, 33%);
+    border-radius: 0.25rem;
+}
+
+.exercise-name:hover,
+.progression-item:hover {
+    background-color: hsl(0, 0%, 34%);
 }
 
 .exercise-list {
@@ -124,12 +134,12 @@ watch(gapiInitialized, async () => {
 
 .progression-list {
     list-style-type: none;
-    padding-left: 20px;
+    padding-left: 1rem;
 }
 
 .progression-item {
-    margin: 5px 0;
+    padding: 0px 8px;
     text-align: left;
-    background-color: hsl(0, 0%, 33%);
+    border-radius: 0.25rem;
 }
 </style>

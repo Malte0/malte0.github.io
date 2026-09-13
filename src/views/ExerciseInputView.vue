@@ -2,15 +2,16 @@
 <script setup lang="ts">
 import type { ExerciseData } from "../types";
 import { onMounted, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { gapiInitialized } from "../excel-db/authentication";
 import { writeExerciseData } from "../excel-db/db-utils";
 import { getSheetNames } from "../excel-db/db-utils";
 const SHEET_ID = import.meta.env.VITE_EXERCISE_SHEET_ID;
 
 const route = useRoute();
+const router = useRouter();
 
-const today: string = new Date().toISOString().split("T")[0] as string; // get today's date in YYYY-MM-DD format
+const today: string = new Date().toISOString().split("T")[0] as string; // get todays date in YYYY-MM-DD format
 const sheetNames = ref<string[]>([]);
 const progressionNames = ref<string[]>([]);
 const exercise = ref<ExerciseData>({
@@ -102,7 +103,14 @@ async function onProgressionChange() {
         break;
       }
     }
-  }  
+  }
+}
+
+function submit(exercise: ExerciseData) {
+  writeExerciseData(SHEET_ID, exercise)
+  // ignore async
+  // @ts-ignore
+  router.back();
 }
 
 onMounted(async () => {
@@ -176,14 +184,14 @@ watch(gapiInitialized, async (isLoaded) => {
         <textarea id="notes" v-model="exercise.notes"></textarea>
       </div>
     </div>
-    <button id="exercise-input-submit-button" @click="() => writeExerciseData(SHEET_ID, exercise)">Submit</button>
+    <button id="exercise-input-submit-button" @click="() => submit(exercise)">Submit</button>
     <p v-if="submitStatus" class="submit-status">{{ submitStatus }}</p>
   </div>
 </template>
 
 <style scoped>
 .exercise-small-input {
-  width: 1rem;
+  width: 5rem;
   flex: 0.3 !important;
   margin-left: 0.5rem;
 }

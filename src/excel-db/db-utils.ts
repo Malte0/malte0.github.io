@@ -32,6 +32,27 @@ export async function getSheetNames(isExerciseSheet: boolean): Promise<string[]>
   return spreadsheetResponse.result.sheets?.map((sheet: any) => sheet.properties?.title) ?? [];
 }
 
+// for all exercises, get all progression names and return a json object
+// exerciseName: [progressionName1, progressionName2, ...]
+export async function getExerciseProgressions(exerciseNames: string[]): Promise<Record<string, string[]>> {
+  const ranges = exerciseNames.map((name) => `'${name.replace(/'/g, "''")}'!B2:B`);
+
+  // @ts-ignore
+  const response = await gapi.client.sheets.spreadsheets.values.batchGet({
+    spreadsheetId: EXERCISE_SHEET_ID,
+    ranges,
+  });
+
+  const progressions: Record<string, string[]> = {};
+  response.result.valueRanges?.forEach((valueRange: any) => {
+    const exerciseName = valueRange.range.split("!")[0].replace(/'/g, "");
+    const progressionNames = valueRange.values?.map((row: any) => row[0]).filter((name: string) => name?.trim()) ?? [];
+    progressions[exerciseName] = Array.from(new Set(progressionNames));
+  });
+  return progressions;
+}
+
+// retrieve progression names for a specific exercise
 export async function getProgressionNames(exerciseName: string): Promise<string[]> {
   // @ts-ignore
   const response = await gapi.client.sheets.spreadsheets.values.get({
@@ -44,11 +65,14 @@ export async function getProgressionNames(exerciseName: string): Promise<string[
       uniqueNames.add(name[0].trim());
     }
   });
-  return uniqueNames.size > 0 ? Array.from(uniqueNames) : [""]; // Return [""] if no progression names are found
+  return uniqueNames.size > 0 ? Array.from(uniqueNames) : [];
 }
 
 // Looks at exercises in workout and returns the first exercise that has not yet been completed on the current day
-export async function fetchCurrentWorkoutExercise(date: string, workout: string): Promise<{exercise: string, progression: string}> {
+export async function fetchCurrentWorkoutExercise(
+  date: string,
+  workout: string,
+): Promise<{ exercise: string; progression: string }> {
   // First fetch all exercises in the workout (maybe optimize by giving as argument)
   // @ts-ignore
   const responseWorkouts = await gapi.client.sheets.spreadsheets.values.get({
@@ -78,7 +102,7 @@ export async function fetchCurrentWorkoutExercise(date: string, workout: string)
       }
     }
   }
-  return {exercise: mostRecentExercise, progression: progression};
+  return { exercise: mostRecentExercise, progression: progression };
 }
 
 export async function getSetsDone(exercise: string, date: string): Promise<number> {
@@ -102,7 +126,7 @@ export async function getSetsDone(exercise: string, date: string): Promise<numbe
   // Filter out empty strings and falsy cells from each row
   sets = sets.map((row) => row.filter((cell) => !!cell));
   console.log(sets);
-  return sets[sets.length - 1]?.length ?? 0; 
+  return sets[sets.length - 1]?.length ?? 0;
 }
 
 export async function getSetsPlanned(workout: string, exercise: string): Promise<number> {
@@ -131,7 +155,7 @@ export async function getExpectedReps(exercise: string, progressionName: string,
   console.log("Fetched exercise data for expected reps:", exerciseData);
   let expectedReps = 8;
   for (const row of exerciseData) {
-    if (row[1] === progressionName) { 
+    if (row[1] === progressionName) {
       expectedReps = parseInt(row[set + 1], 10); // Assuming set 1 reps are in column C, set 2 in D, etc.
     }
   }
@@ -168,11 +192,12 @@ export async function writeExerciseData(sheedId: string, exercise: ExerciseData)
       exercise.notes,
     ];
 
+    console.log(dataRow);
     // @ts-ignore
     await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId: sheedId,
       range: `${exercise.name}!A${firstEmptyRow}`,
-      valueInputOption: "RAW",
+      valueInputOption: "USER_ENTERED",
       resource: {
         values: [dataRow],
       },
