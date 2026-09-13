@@ -2,7 +2,7 @@
 import { onMounted, ref, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { gapiInitialized } from '../excel-db/authentication';
-import { getExerciseProgressions, getProgressionNames, getSheetNames } from '../excel-db/db-utils';
+import { getExerciseProgressions, getSheetNames } from '../excel-db/db-utils';
 
 type exerciseListItem = {
     name: string;

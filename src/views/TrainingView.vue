@@ -3,7 +3,7 @@
 import type { ExerciseData } from "../types";
 import { onMounted, ref, watch } from 'vue';
 import { fetchCurrentWorkoutExercise, getExpectedReps, getSetsDone, getSetsPlanned, writeExerciseData } from '../excel-db/db-utils';
-import type { Workout } from '../types';
+// import type { Workout } from '../types';
 import { gapiInitialized } from '../excel-db/authentication';
 import ProgressInput from '../components/ProgressInput.vue';
 const SHEET_ID = import.meta.env.VITE_EXERCISE_SHEET_ID;
@@ -18,7 +18,7 @@ const setsLeft = ref<number>(0);
 const expectedReps = ref<number>(8);
 const repsDone = ref<number>(0);
 const workoutName = new URLSearchParams(window.location.search).get('workout') || '';
-const workout = ref<Workout>()
+// const workout = ref<Workout>()
 
 const dataLoaded = ref<boolean>(false);
 
